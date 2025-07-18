@@ -6,11 +6,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 file(GLOB SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 option(USE_VENDORED "Use vendored libraries" ON)
+option(USE_CONSOLE "Use console application" OFF)
 
 project(game-testing)
 add_executable(app ${SOURCES})
 
 target_include_directories(app PRIVATE C:/Glad/include)
+target_include_directories(app PRIVATE include)
+
 target_sources(app PRIVATE
     C:/Glad/src/glad.c
 )
@@ -27,4 +30,4 @@ endif()
 target_link_libraries(app PRIVATE SDL3_ttf::SDL3_ttf SDL3::SDL3)
 
 target_compile_definitions(app PRIVATE SDL_MAIN_USE_CALLBACKS)
-target_link_options(app PRIVATE -mwindows -static)
+target_link_options(app PRIVATE -static)

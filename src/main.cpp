@@ -3,6 +3,12 @@
 #include <glad/glad.h>
 #include <iostream>
 
+#include <state.h>
+
+State *state = NULL;
+int curState = -1;
+int prevState = -1; 
+
 struct AppContext
 {
     SDL_Window *window;
@@ -59,6 +65,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
     auto *app = (AppContext *)appstate;
+    if (state != nullptr)
+    {
+        state->handleEvent(*event);
+    }
 
     switch (event->type)
     {
@@ -80,8 +90,37 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 {
     auto *app = (AppContext *)appstate;
 
+    if (curState < 0)
+        curState = 0;
+
+    if (curState != prevState)
+    {
+        if (state)
+        {
+            state->destroy();
+            delete state;
+        }
+        
+        state = new State();
+        state->init();
+        prevState = curState;
+
+        std::cout << "Initialized state: " << state->getName() << std::endl;
+    }
+
+    // Variable to see if state is valid
+    bool stateValid = (state != nullptr);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    if (stateValid) {
+        state->update();
+    }
+
     SDL_GL_SwapWindow(app->window);
+
+    if (stateValid) {
+        state->postBuffer();
+    }
 
     return app->appQuit;
 }
