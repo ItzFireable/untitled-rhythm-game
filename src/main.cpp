@@ -27,7 +27,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 2);
 
-    SDL_Window *window = SDL_CreateWindow("SDL3, OpenGL 4.6, C++", 1280, 720, SDL_WINDOW_OPENGL);
+    SDL_Window *window = SDL_CreateWindow("SDL3, OpenGL 4.6, C++", 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS);
     if (!window)
     {
         return SDL_Fail();
@@ -45,7 +45,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_APP_FAILURE;
     }
 
-    glClearColor(0.f, 0.f, 0.f, 1.f);
+    glClearColor(0.f, 0.5f, 0.5f, 1.f);
     SDL_ShowWindow(window);
 
     *appstate = new AppContext {
