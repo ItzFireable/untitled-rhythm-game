@@ -1,0 +1,1 @@
+cmake -G "MinGW Makefiles" -S . -B output -DSDL3_DIR=E:/libs/sdl-3.1.3-prefix/win/lib/cmake/SDL3    
