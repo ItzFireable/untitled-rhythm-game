@@ -31,13 +31,8 @@ if(MSVC)
     target_compile_options(app PRIVATE /EHa)
 endif()
 
-target_include_directories(app PRIVATE D:/Glad/include)
 target_include_directories(app PRIVATE vendored/include)
 target_include_directories(app PRIVATE include)
-
-target_sources(app PRIVATE
-    D:/Glad/src/glad.c
-)
 
 if(USE_VENDORED)
     set(SDLTTF_VENDORED ON)
