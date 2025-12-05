@@ -1,4 +1,5 @@
 #include "objects/FPSCounter.h"
+#include "utils/Variables.h"
 #include "utils/Utils.h"
 #include <iomanip>
 #include <sstream>
@@ -14,17 +15,14 @@
 #include <unistd.h>
 #endif
 
-FPSCounter::FPSCounter(SDL_Renderer *renderer, const std::string &fontPath, int fontSize)
+FPSCounter::FPSCounter(SDL_Renderer *renderer, const std::string &fontPath, int fontSize, float yPos = 7.0f)
 {
     textObject_ = new TextObject(renderer, fontPath, fontSize);
 
-    textObject_->setPosition(5.0f, 4.0f);
+    textObject_->setPosition(9.0f, yPos);
     textObject_->setTextGap(-2.0f);
     textObject_->setColor({255, 255, 255, 255});
     textObject_->setText("Init...");
-
-    perfFrequency_ = SDL_GetPerformanceFrequency();
-    lastTick_ = SDL_GetPerformanceCounter();
 }
 
 FPSCounter::~FPSCounter()
@@ -34,6 +32,8 @@ FPSCounter::~FPSCounter()
         delete textObject_;
         textObject_ = nullptr;
     }
+
+    backgroundRect_ = nullptr;
 }
 
 long FPSCounter::getAppMemoryUsageKb()
@@ -69,6 +69,12 @@ long FPSCounter::getAppMemoryUsageKb()
 
 void FPSCounter::update()
 {
+    if (!perfFrequency_)
+    {
+        perfFrequency_ = SDL_GetPerformanceFrequency();
+        lastTick_ = SDL_GetPerformanceCounter();
+    }
+
     if (!textObject_)
         return;
 
@@ -105,10 +111,44 @@ void FPSCounter::update()
     }
 }
 
-void FPSCounter::render()
+void FPSCounter::render(SDL_Renderer* renderer) 
 {
-    if (textObject_)
-    {
-        textObject_->render();
+    if (!textObject_) {
+        return;
     }
+    
+    float textX, textY;
+    textObject_->getPosition(textX, textY);
+
+    float textW = textObject_->getRenderedWidth();
+    float textH = textObject_->getRenderedHeight();
+
+    float padding = 4.0f;
+    float reducedPos = 0.0f;
+
+    if (textObject_->getTextGap() != 0.0f) {
+        reducedPos = textObject_->getTextGap() * (textObject_->getLineCount() + 1);
+    }
+
+    SDL_FRect backgroundRect = {
+        textX - padding,
+        textY - padding + 2.0f,
+        textW + (2.0f * padding) + 2.0f,
+        textH + (2.0f * padding) + reducedPos
+    };
+
+    SDL_Color oldColor;
+    SDL_GetRenderDrawColor(renderer, &oldColor.r, &oldColor.g, &oldColor.b, &oldColor.a);
+    SDL_BlendMode oldMode;
+    SDL_GetRenderDrawBlendMode(renderer, &oldMode);
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 128); 
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    SDL_RenderFillRect(renderer, &backgroundRect);
+
+    SDL_SetRenderDrawColor(renderer, oldColor.r, oldColor.g, oldColor.b, oldColor.a);
+    SDL_SetRenderDrawBlendMode(renderer, oldMode);
+
+    textObject_->render();
 }

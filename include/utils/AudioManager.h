@@ -33,10 +33,12 @@ struct MusicStream {
     float volume = 0.02f;
     float playbackRate = 1.0f;
     int totalSamples = 0;
+    int channels = 0;
     bool isLooping = false;
 
     std::uint64_t samplesRead = 0;
     std::uint64_t seekOffsetFrames = 0;
+    std::uint64_t totalSamplesProcessed = 0;
     AudioFileType fileType = FILE_TYPE_NONE;
 };
 
@@ -74,18 +76,41 @@ public:
     float getMusicVolume() const;
 
     void setMusicPosition(float timeInSeconds);
-    float getMusicPosition() const;
+    std::uint64_t getMusicSamplesOffset() const;
+
+    float getMusicPosition() const
+    {
+        if (!currentStream_.sourceID || currentStream_.sampleRate == 0) return 0.0f;
+
+        ALint offset = 0;
+        alGetSourcei(currentStream_.sourceID, AL_SAMPLE_OFFSET, &offset);
+        std::uint64_t currentSamplePosition = currentStream_.totalSamplesProcessed + offset;
+
+        return (float)currentSamplePosition / currentStream_.sampleRate;
+    }
+
+    float getMusicDuration() const
+    {
+        if (!currentStream_.sourceID || currentStream_.sampleRate == 0) return 0.0f;
+        if (currentStream_.totalSamples == 0) return 0.0f;
+    
+        return static_cast<float>(currentStream_.totalSamples) / static_cast<float>(currentStream_.sampleRate);
+    }
     
     bool switchMusicStream(const std::string& filePath, float crossfadeDuration = 0.0f, float startTime = 0.0f);
     bool isMusicPlaying() const { return currentStream_.isPlaying; }
-    int getCurrentMusicPosition() const { return currentStream_.samplesRead; }
-    int getMusicLength() const { return currentStream_.totalSamples; }
+    void forceStopCrossfade();
     void updateStream();
     
     MusicStream* getActiveStream() { return &currentStream_; }
+
+    bool hasSongEndedNaturally() const { return songEndedNaturally_; }
+    void clearSongEndedFlag() { songEndedNaturally_ = false; }
 private:
     AudioManager(); 
     ~AudioManager();
+
+    bool songEndedNaturally_ = false;
     
     ALCdevice* device_ = nullptr;
     ALCcontext* context_ = nullptr;

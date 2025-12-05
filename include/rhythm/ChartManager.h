@@ -8,19 +8,18 @@
 
 enum NoteType { TAP, HOLD_START, HOLD_END };
 
-struct Note {
-    int time;       // Time in milliseconds
-    int column;     // Column index (0 to keyCount-1)
-    NoteType type;  // Type of note
-
-    // Comparison operator for sorting
-    bool operator<(const Note& other) const {
+struct NoteStruct {
+    float time;
+    int column;
+    NoteType type;
+    
+    bool operator<(const NoteStruct& other) const {
         return time < other.time;
     }
 };
 
 struct TimingPoint {
-    int time;
+    float time;
     double bpm;
 };
 
@@ -28,7 +27,7 @@ struct ChartData {
     std::string filename;
     std::string filePath;
 
-    std::vector<Note> notes;
+    std::vector<NoteStruct> notes;
     std::vector<TimingPoint> timingPoints;
     std::map<std::string, std::string> metadata;
     int keyCount = 4;

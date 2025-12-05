@@ -1,9 +1,8 @@
 # Ignore Visual Studio Code settings
 .vscode/
 
-# Ignore build output and assets
+# Ignore build output
 output/
-assets/
 
 # Ignore includes from vendored/include/, as they should be fetched by the people who clone the repo
 vendored/include/

@@ -28,9 +28,6 @@
 #define DR_MP3_IMPLEMENTATION
 #include "dr_mp3.h"
 
-#define BUFFER_SIZE_SAMPLES 4096
-#define NUM_BUFFERS 4
-
 std::string getFileExtension(const std::string &filePath)
 {
     size_t dotPos = filePath.find_last_of('.');
@@ -91,6 +88,11 @@ bool AudioManager::streamToBuffer(ALuint bufferID, MusicStream *stream)
     if (!stream || !stream->streamHandle)
         return false;
 
+    if (stream->sourceID == 0) {
+        GAME_LOG_ERROR("FATAL ERROR: Attempted to queue buffer on invalid (0) source ID in streamToBuffer.");
+        return false;
+    }
+
     int numChannels = (stream->format == AL_FORMAT_MONO16) ? 1 : 2;
     int shortsToRead = BUFFER_SIZE_SAMPLES * numChannels;
 
@@ -104,7 +106,7 @@ bool AudioManager::streamToBuffer(ALuint bufferID, MusicStream *stream)
             static_cast<stb_vorbis *>(stream->streamHandle),
             numChannels,
             pcmData.data(),
-            BUFFER_SIZE_SAMPLES);
+            shortsToRead);
         break;
     case FILE_TYPE_WAV:
         framesRead = drwav_read_pcm_frames_s16(
@@ -127,7 +129,18 @@ bool AudioManager::streamToBuffer(ALuint bufferID, MusicStream *stream)
         return false;
     }
 
+    if (stream->sampleRate <= 0)
+    {
+        GAME_LOG_ERROR("ERROR: Invalid sample rate in streamToBuffer: " + std::to_string(stream->sampleRate));
+        return false;
+    }
+
     ALsizei dataSize = (ALsizei)(framesRead * numChannels * sizeof(short));
+    if (dataSize <= 0) {
+        GAME_LOG_ERROR("Buffer data size is 0 or less!");
+        return false;
+    }
+
     alBufferData(bufferID, stream->format, pcmData.data(),
                  dataSize, stream->sampleRate);
 
@@ -335,6 +348,7 @@ void AudioManager::setMusicPosition(float timeInSeconds)
     {
     case FILE_TYPE_OGG:
         stb_vorbis_seek(static_cast<stb_vorbis *>(currentStream_.streamHandle), targetSample);
+        currentStream_.samplesRead = stb_vorbis_get_sample_offset(static_cast<stb_vorbis *>(currentStream_.streamHandle));
         break;
     case FILE_TYPE_WAV:
         drwav_seek_to_pcm_frame(static_cast<drwav *>(currentStream_.streamHandle), targetSample);
@@ -347,6 +361,7 @@ void AudioManager::setMusicPosition(float timeInSeconds)
     }
 
     currentStream_.samplesRead = targetSample;
+    currentStream_.totalSamplesProcessed = targetSample;
 
     alSourceStop(currentStream_.sourceID);
     ALint queued = 0;
@@ -367,6 +382,17 @@ void AudioManager::setMusicPosition(float timeInSeconds)
     {
         alSourcePlay(currentStream_.sourceID);
     }
+}
+
+std::uint64_t AudioManager::getMusicSamplesOffset() const
+{
+    if (!currentStream_.sourceID)
+        return 0;
+
+    ALint sampleOffset = 0;
+    alGetSourcei(currentStream_.sourceID, AL_SAMPLE_OFFSET, &sampleOffset);
+
+    return currentStream_.totalSamplesProcessed + (std::uint64_t)sampleOffset;
 }
 
 bool AudioManager::loadOggToBuffer(const std::string &filePath, ALuint bufferID, ALenum &format, ALsizei &sampleRate, int &totalSamples)
@@ -649,7 +675,7 @@ bool AudioManager::loadMusicStream(const std::string &filePath, float startTime)
         currentStream_.streamHandle = mp3;
         channels = mp3->channels;
         sampleRate = mp3->sampleRate;
-        currentStream_.totalSamples = 0;
+        currentStream_.totalSamples = (int)drmp3_get_pcm_frame_count(mp3);
         success = true;
         break;
     }
@@ -664,6 +690,7 @@ bool AudioManager::loadMusicStream(const std::string &filePath, float startTime)
         return false;
     }
 
+    currentStream_.channels = channels;
     currentStream_.sampleRate = sampleRate;
     currentStream_.samplesRead = 0;
 
@@ -710,6 +737,12 @@ bool AudioManager::loadMusicStream(const std::string &filePath, float startTime)
     currentStream_.samplesRead = startFrameOffset;
 
     alGenSources(1, &currentStream_.sourceID);
+    if (currentStream_.sourceID == 0) {
+        GAME_LOG_ERROR("FATAL ERROR: alGenSources failed to generate a valid source ID (returned 0).");
+        stopMusicStream();
+        return false;
+    }
+
     currentStream_.buffers.resize(NUM_BUFFERS);
     alGenBuffers(NUM_BUFFERS, currentStream_.buffers.data());
 
@@ -745,6 +778,7 @@ void AudioManager::playMusicStream()
 
 void AudioManager::stopMusicStream()
 {
+    songEndedNaturally_ = false;
     if (currentStream_.sourceID == 0)
         return;
 
@@ -790,11 +824,42 @@ void AudioManager::resumeMusicStream()
     }
 }
 
+void AudioManager::forceStopCrossfade()
+{
+    if (!isCrossfading_) return;
+
+    if (currentStream_.sourceID) {
+        alSourceStop(currentStream_.sourceID);
+
+        ALint queued = 0;
+        alGetSourcei(currentStream_.sourceID, AL_BUFFERS_QUEUED, &queued);
+        while (queued-- > 0) {
+            ALuint buf;
+            alSourceUnqueueBuffers(currentStream_.sourceID, 1, &buf);
+        }
+        alDeleteSources(1, &currentStream_.sourceID);
+        alDeleteBuffers((ALsizei)currentStream_.buffers.size(), currentStream_.buffers.data());
+    }
+
+    closeStream(&currentStream_);
+
+    if (nextStream_.sourceID) {
+        alSourceStop(nextStream_.sourceID);
+        alDeleteSources(1, &nextStream_.sourceID);
+        alDeleteBuffers((ALsizei)nextStream_.buffers.size(), nextStream_.buffers.data());
+    }
+
+    closeStream(&nextStream_);
+
+    currentStream_ = MusicStream{};
+    nextStream_ = MusicStream{};
+    isCrossfading_ = false;
+}
+
 bool AudioManager::switchMusicStream(const std::string &filePath, float crossfadeDuration, float startTimeSeconds)
 {
     if (crossfadeDuration <= 0.0f)
     {
-
         stopMusicStream();
         if (loadMusicStream(filePath, startTimeSeconds))
         {
@@ -982,6 +1047,16 @@ bool AudioManager::switchMusicStream(const std::string &filePath, float crossfad
     nextStream_.samplesRead = startFrameOffset + framesSkipped;
 
     alGenSources(1, &nextStream_.sourceID);
+
+    if (nextStream_.sourceID == 0) {
+        GAME_LOG_ERROR("FATAL ERROR: alGenSources failed to generate a valid next source ID (returned 0).");
+        if (!nextStream_.buffers.empty())
+            alDeleteBuffers(static_cast<ALsizei>(nextStream_.buffers.size()), nextStream_.buffers.data());
+        closeStream(&nextStream_);
+        nextStream_ = MusicStream{};
+        return false;
+    }
+
     nextStream_.buffers.resize(NUM_BUFFERS);
     alGenBuffers(NUM_BUFFERS, nextStream_.buffers.data());
 
@@ -1018,10 +1093,8 @@ bool AudioManager::switchMusicStream(const std::string &filePath, float crossfad
 
 void AudioManager::updateStream()
 {
-
     if (isCrossfading_)
     {
-
         float deltaTime = 1.0f / 60.0f;
         crossfadeProgress_ += deltaTime;
 
@@ -1096,6 +1169,11 @@ void AudioManager::updateStreamBuffers(MusicStream *stream)
         alSourceUnqueueBuffers(stream->sourceID, 1, &bufferID);
         buffersProcessed--;
 
+        if (stream->totalSamplesProcessed < stream->totalSamples || stream->totalSamples == 0)
+        {
+            stream->totalSamplesProcessed += BUFFER_SIZE_SAMPLES;
+        }
+
         if (stream->samplesRead < stream->totalSamples || stream->totalSamples == 0)
         {
             if (!streamToBuffer(bufferID, stream))
@@ -1128,7 +1206,7 @@ void AudioManager::updateStreamBuffers(MusicStream *stream)
             {
                 if (!isCrossfading_)
                 {
-                    stopMusicStream();
+                    songEndedNaturally_ = true;
                 }
             }
         }

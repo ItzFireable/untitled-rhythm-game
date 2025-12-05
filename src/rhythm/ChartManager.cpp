@@ -24,12 +24,12 @@ ChartData ChartManager::parseVsc(const std::string& content) {
                 }
             } else if (currentSection == "TIMING") {
                 std::stringstream lss(line);
-                int time; std::string tag; double bpm;
+                float time; std::string tag; double bpm;
                 lss >> time >> tag >> bpm;
                 if (tag == "BPM") data.timingPoints.push_back({time, bpm});
             } else if (currentSection == "NOTES") {
                 std::stringstream lss(line);
-                int time, col; std::string typeStr;
+                float time; int col; std::string typeStr;
                 lss >> time >> col >> typeStr;
                 
                 NoteType type = TAP;
@@ -92,7 +92,7 @@ ChartData ChartManager::convertOsuToChartData(const std::string& osuContent) {
         else if (section == "TimingPoints") {
             auto parts = Utils::split(trimmedLine, ',');
             if (parts.size() >= 7 && std::stoi(parts[6]) == 1) { 
-                int time = static_cast<int>(std::floor(std::stod(parts[0])));
+                float time = std::floor(std::stod(parts[0]));
                 double msPerBeat = std::stod(parts[1]);
                 if (msPerBeat > 0) {
                     double bpm = 60000.0 / msPerBeat;
@@ -104,7 +104,7 @@ ChartData ChartManager::convertOsuToChartData(const std::string& osuContent) {
             auto parts = Utils::split(trimmedLine, ',');
             if (parts.size() >= 5) {
                 int x = std::stoi(parts[0]);
-                int time = std::stoi(parts[2]);
+                float time = std::stof(parts[2]);
                 int type = std::stoi(parts[3]);
                 
                 int column = std::min(static_cast<int>(std::floor(x * data.keyCount / 512.0)), data.keyCount - 1);
@@ -114,7 +114,7 @@ ChartData ChartManager::convertOsuToChartData(const std::string& osuContent) {
                 if (isHold && parts.size() >= 6) {
                     std::string objectParams = parts[5];
                     size_t colonPos = objectParams.find(':');
-                    int endTime = (colonPos != std::string::npos) 
+                    float endTime = (colonPos != std::string::npos) 
                                 ? std::stoi(objectParams.substr(0, colonPos)) 
                                 : std::stoi(objectParams);
 

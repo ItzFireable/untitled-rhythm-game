@@ -7,3 +7,6 @@
 [submodule "vendored/openal-soft"]
 	path = vendored/openal-soft
 	url = https://github.com/kcat/openal-soft
+[submodule "vendored/SDL_image"]
+	path = vendored/SDL_image
+	url = https://github.com/libsdl-org/SDL_image

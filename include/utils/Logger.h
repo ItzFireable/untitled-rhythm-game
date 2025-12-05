@@ -50,6 +50,7 @@ private:
 
     std::string levelToString(LogLevel level);
     std::string getCurrentTimestamp();
+    std::string getCurrentDate();
 };
 
 #define GAME_LOG_INFO(msg)    Logger::getInstance().log(LogLevel::GAME_INFO, msg, __FILE__, __LINE__)

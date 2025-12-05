@@ -5,6 +5,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <string>
 #include <iostream>
+#include <algorithm>
 
 enum TextXAlignment {
     ALIGN_LEFT,
@@ -35,12 +36,27 @@ public:
     void setColor(SDL_Color color);
     void render();
 
+    void getPosition(float& x, float& y) const {
+        x = destRect_.x;
+        y = destRect_.y;
+    }
+
+    float getTextGap() const { return textGap_; }
+    float getLineCount() const {
+        if (text_.empty()) {
+            return 0.0f;
+        }
+        return static_cast<float>(std::count(text_.begin(), text_.end(), '\n') + 1);
+    }
+
     void setTextGap(float gap);
     void setAlignment(TextAlignment alignment);
 
     void setXAlignment(TextXAlignment alignment);
     void setYAlignment(TextYAlignment alignment);
 
+    float getRenderedWidth() const { return destRect_.w; }
+    float getRenderedHeight() const { return destRect_.h; }
 private:
     SDL_Renderer* renderer_ = nullptr;
     TTF_Font* font_ = nullptr;

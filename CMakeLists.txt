@@ -39,6 +39,7 @@ if(USE_VENDORED)
     
     add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
     add_subdirectory(vendored/SDL_ttf EXCLUDE_FROM_ALL)
+    add_subdirectory(vendored/SDL_image EXCLUDE_FROM_ALL)
     
     # Use prebuilt OpenAL instead of building from source
     # Place OpenAL32.dll in project root or vendored/openal-soft/
@@ -63,11 +64,13 @@ if(USE_VENDORED)
     endif()
 
     target_include_directories(app PRIVATE vendored/SDL_ttf/include)
+    target_include_directories(app PRIVATE vendored/SDL_image/include)
     target_include_directories(app PRIVATE vendored/openal-soft/include)
 
     target_link_libraries(app PRIVATE 
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
+        SDL3_image::SDL3_image
     )
     
     # Link OpenAL last
@@ -84,9 +87,11 @@ if(USE_VENDORED)
 else()
     find_package(SDL3 REQUIRED)
     find_package(SDL3_ttf REQUIRED)
+    find_package(SDL3_image REQUIRED)
     find_package(OpenAL REQUIRED)
 
     target_include_directories(app PRIVATE ${SDL3_TTF_INCLUDE_DIR})
+    target_include_directories(app PRIVATE ${SDL3_IMAGE_INCLUDE_DIR})
     target_include_directories(app PRIVATE ${OPENAL_INCLUDE_DIR})
 
     target_link_libraries(app PRIVATE 

@@ -92,6 +92,8 @@ bool TextObject::_loadFont(const std::string& path, int size) {
     if (!font_) {
         return false;
     }
+
+    TTF_SetFontHinting(font_, TTF_HINTING_LIGHT_SUBPIXEL);
     return true;
 }
 
@@ -140,8 +142,6 @@ void TextObject::_updatePosition() {
 }
 
 void TextObject::_updateTexture() {
-    _destroyTexture();
-
     if (!font_ || renderer_ == nullptr || text_.empty()) {
         destRect_.w = 0.0f;
         destRect_.h = 0.0f;
@@ -163,7 +163,7 @@ void TextObject::_updateTexture() {
         }
     }
 
-    texture_ = SDL_CreateTexture(
+    SDL_Texture* finalTexture = SDL_CreateTexture(
         renderer_, 
         SDL_PIXELFORMAT_RGBA8888, 
         SDL_TEXTUREACCESS_TARGET, 
@@ -171,13 +171,13 @@ void TextObject::_updateTexture() {
         totalHeight
     );
     
-    if (!texture_) {
+    if (!finalTexture) {
         GAME_LOG_ERROR("Failed to create render target texture: " + std::string(SDL_GetError()));
         destRect_.w = 0.0f; destRect_.h = 0.0f; return;
     }
 
     SDL_Texture* oldTarget = SDL_GetRenderTarget(renderer_);
-    SDL_SetRenderTarget(renderer_, texture_);
+    SDL_SetRenderTarget(renderer_, finalTexture);
 
     SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 0); 
     SDL_RenderClear(renderer_);
@@ -189,7 +189,9 @@ void TextObject::_updateTexture() {
         
         if (!line.empty()) {
             SDL_Surface* tempSurface = TTF_RenderText_Blended(font_, line.c_str(), line.length(), color_);
-            if (!tempSurface) continue;
+            if (!tempSurface) {
+                continue;
+            };
 
             SDL_Surface* lineSurface = SDL_ConvertSurface(
                 tempSurface, 
@@ -236,7 +238,10 @@ void TextObject::_updateTexture() {
         
         currentY += lineSkip + textGap_;
     }
+
     SDL_SetRenderTarget(renderer_, oldTarget);
+    _destroyTexture();
+    texture_ = finalTexture;
     
     destRect_.w = (float)maxWidth;
     destRect_.h = (float)totalHeight;

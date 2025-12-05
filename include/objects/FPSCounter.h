@@ -3,42 +3,53 @@
 
 #include <SDL3/SDL.h>
 #include <string>
-#include "TextObject.h" // Assuming TextObject.h is in the same directory
+#include "TextObject.h"
+
+struct AppContext;
 
 class FPSCounter {
 public:
-    /**
-     * @brief Initializes the FPS counter, creating the underlying TextObject.
-     */
-    FPSCounter(SDL_Renderer* renderer, const std::string& fontPath, int fontSize);
-    
+    FPSCounter(SDL_Renderer* renderer, const std::string& fontPath, int fontSize, float yPos);
     ~FPSCounter();
 
-    /**
-     * @brief Updates the internal timing logic and, if needed, recalculates the FPS
-     * and updates the TextObject's text.
-     */
-    void update();
+    void setAppContext(AppContext* appContext) { appContext_ = appContext; }
+    AppContext* getAppContext() const { return appContext_; }
 
-    /**
-     * @brief Renders the FPS text to the screen.
-     */
-    void render();
+    virtual void update();
+    virtual void render(SDL_Renderer* renderer);
 
-private:
+    void setYPosition(float yPos) {
+        float x, y;
+        textObject_->getPosition(x, y);
+        textObject_->setPosition((int)x, (int)yPos);
+    }
+
+    float getYPosition() const {
+        float y;
+        textObject_->getPosition(y, y);
+        return y;
+    }
+
+    float getHeight() const {
+        return textObject_->getRenderedHeight();
+    }
+protected:
+    AppContext* appContext_ = nullptr;
+
     TextObject* textObject_ = nullptr;
+    SDL_FRect* backgroundRect_ = nullptr;
     
-    // Timing variables for FPS calculation
     Uint64 lastTick_ = 0;
     Uint64 perfFrequency_ = 0;
     
     Uint32 frameCount_ = 0;
-    float frameAccumulator_ = 0.0f; // Accumulates time in seconds
+    float frameAccumulator_ = 0.0f;
 
     float latestFrameTimeMs_ = 0.0f;
     long memoryUsageKb_ = 0;
 
+private:
     long getAppMemoryUsageKb();
 };
 
-#endif // FPS_COUNTER_H
+#endif

@@ -12,4 +12,4 @@ There are .bat files to get it loaded up on Windows, depending on CMake.
 
 
 ## Resources
-This project uses `SDL3`, `SDL3_ttf` and `OpenAL` as its dependencies. It also uses [stb_vorbis.c](https://github.com/nothings/stb/blob/master/stb_vorbis.c), [dr_mp3.h](https://github.com/mackron/dr_libs/blob/master/dr_mp3.h) and [dr_wav](https://github.com/mackron/dr_libs/blob/master/dr_wav.h).
+This project uses `SDL3`, `SDL3_ttf`, `SDL3_image` and `OpenAL` as its dependencies. It also uses [stb_vorbis.c](https://github.com/nothings/stb/blob/master/stb_vorbis.c), [dr_mp3.h](https://github.com/mackron/dr_libs/blob/master/dr_mp3.h) and [dr_wav](https://github.com/mackron/dr_libs/blob/master/dr_wav.h).

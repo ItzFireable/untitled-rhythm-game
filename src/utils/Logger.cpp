@@ -5,8 +5,39 @@ Logger& Logger::getInstance() {
     return instance;
 }
 
+std::string Logger::getCurrentDate() {
+    using namespace std::chrono;
+    
+    auto now = system_clock::now();
+    auto now_time_t = system_clock::to_time_t(now);
+    std::tm* local_time = std::localtime(&now_time_t);
+    
+    std::stringstream ss;
+    ss << std::put_time(local_time, "%Y-%m-%d");
+    return ss.str();
+}
+
+std::string Logger::getCurrentTimestamp() {
+    using namespace std::chrono;
+    
+    auto now = system_clock::now();
+    auto now_time_t = system_clock::to_time_t(now);
+
+    auto ms = duration_cast<milliseconds>(now - system_clock::from_time_t(now_time_t));
+    std::tm* local_time = std::localtime(&now_time_t);
+    
+    std::stringstream ss;
+    ss << std::put_time(local_time, "%H:%M:%S");
+    ss << "." << std::setw(3) << std::setfill('0') << ms.count();
+
+    return ss.str();
+}
+
 Logger::Logger() {
-    logFile_.open("game.log", std::ios::out | std::ios::trunc); 
+    std::string currentDate = getCurrentDate();
+    std::string currentTime = getCurrentTimestamp();
+
+    logFile_.open("logs/game_" + currentDate + "_" + currentTime + ".log", std::ios::out | std::ios::trunc); 
     if (!logFile_.is_open()) {
         std::cerr << "ERROR: Failed to open log file 'game.log'. Logging to console only." << std::endl;
     }
@@ -42,22 +73,6 @@ std::string Logger::levelToString(LogLevel level) {
         case LogLevel::GAME_DEBUG:   return "[DEBUG]";
         default:                     return "[UNKWN]";
     }
-}
-
-std::string Logger::getCurrentTimestamp() {
-    using namespace std::chrono;
-    
-    auto now = system_clock::now();
-    auto now_time_t = system_clock::to_time_t(now);
-
-    auto ms = duration_cast<milliseconds>(now - system_clock::from_time_t(now_time_t));
-    std::tm* local_time = std::localtime(&now_time_t);
-    
-    std::stringstream ss;
-    ss << std::put_time(local_time, "%H:%M:%S");
-    ss << "." << std::setw(3) << std::setfill('0') << ms.count();
-
-    return ss.str();
 }
 
 void Logger::processLogQueue() {

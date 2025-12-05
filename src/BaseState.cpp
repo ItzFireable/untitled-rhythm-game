@@ -6,6 +6,7 @@
 BaseState::~BaseState() {}; 
 
 void BaseState::handleEvent(const SDL_Event& e) {}
-void BaseState::update() {}
+void BaseState::update(float deltaTime) {}
+void BaseState::render() {}
 void BaseState::destroy() {}
 void BaseState::postBuffer() {}
