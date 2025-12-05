@@ -10,3 +10,6 @@
 [submodule "vendored/SDL_image"]
 	path = vendored/SDL_image
 	url = https://github.com/libsdl-org/SDL_image
+[submodule "assets"]
+	path = assets
+	url = https://github.com/ItzFireable/untitled-rhythm-game-assets
