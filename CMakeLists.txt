@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -17,13 +19,6 @@ option(USE_CONSOLE "Use console application" OFF)
 
 project(game-testing)
 add_executable(app ${SOURCES})
-
-target_compile_features(app PRIVATE cxx_std_17)
-
-target_compile_options(app PRIVATE 
-    $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>
-    -pthread
-)
 
 list(APPEND SOURCES "${CMAKE_SOURCE_DIR}/src/utils/stb_vorbis_impl.cpp")
 
