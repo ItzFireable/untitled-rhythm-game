@@ -13,6 +13,7 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
     "src/states/*.cpp"
     "src/rhythm/*.cpp"
 )
+list(APPEND SOURCES "${CMAKE_SOURCE_DIR}/src/utils/stb_vorbis_impl.cpp")
 
 option(USE_VENDORED "Use vendored libraries" ON)
 option(USE_CONSOLE "Use console application" OFF)
@@ -20,7 +21,6 @@ option(USE_CONSOLE "Use console application" OFF)
 project(game-testing)
 add_executable(app ${SOURCES})
 
-list(APPEND SOURCES "${CMAKE_SOURCE_DIR}/src/utils/stb_vorbis_impl.cpp")
 
 if(MSVC)
     target_compile_options(app PRIVATE /EHa)
@@ -36,8 +36,6 @@ if(USE_VENDORED)
     add_subdirectory(vendored/SDL_ttf EXCLUDE_FROM_ALL)
     add_subdirectory(vendored/SDL_image EXCLUDE_FROM_ALL)
     
-    # Use prebuilt OpenAL instead of building from source
-    # Place OpenAL32.dll in project root or vendored/openal-soft/
     find_library(OPENAL_LIBRARY 
         NAMES OpenAL32 
         PATHS ${CMAKE_SOURCE_DIR}/vendored/openal-soft
@@ -68,10 +66,7 @@ if(USE_VENDORED)
         SDL3_image::SDL3_image
     )
     
-    # Link OpenAL last
     target_link_libraries(app PRIVATE ${OPENAL_TARGET})
-
-    # CRITICAL: Copy OpenAL DLL to executable directory after build
     add_custom_command(TARGET app POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:OpenAL>
@@ -96,7 +91,6 @@ else()
     )
 endif()
 
-# Copy assets directory
 add_custom_command(TARGET app POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:app>/assets
@@ -107,7 +101,6 @@ target_link_libraries(app PRIVATE
     pthread
 )
 
-# Print diagnostic information
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Executable will be in: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
