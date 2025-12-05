@@ -24,7 +24,7 @@ public:
     void render(SDL_Renderer* renderer);
     void destroy();
 
-    void spawnJudgementEffect(const std::string& judgementName);
+    void spawnJudgementEffect(const JudgementResult &judgement);
     void handleStrumInput(int keybind, bool isKeyDown);
 
     void handleKeyPress(int column);
@@ -59,6 +59,9 @@ public:
     }
 
     void loadNotes(ChartData* chartData);
+    void setAppContext(AppContext* appContext) {
+        appContext_ = appContext;
+    }
     void setConductor(Conductor* conductor);
     Conductor* getConductor() const {
         return conductor_;
@@ -82,6 +85,7 @@ public:
 
     bool getAutoplay() const { return useAutoplay_; }
 private:
+    AppContext* appContext_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
     Conductor* conductor_;
     JudgementSystem* judgementSystem_ = nullptr;

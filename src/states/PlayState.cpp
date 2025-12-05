@@ -78,6 +78,8 @@ void PlayState::init(AppContext *appContext, void *payload)
     playfield_->setPosition(screenWidth_ / 2.0f, screenHeight_ / 2.0f);
 
     playfield_->setConductor(conductor_.get());
+    playfield_->setAppContext(appContext);
+
     playfield_->setJudgementSystem(judgementSystem_.get());
     playfield_->loadNotes(&chartData_);
 
@@ -110,44 +112,55 @@ void PlayState::handleEvent(const SDL_Event &event)
 
     if (event.type == SDL_EVENT_KEY_DOWN)
     {
-        switch (event.key.key)
+        bool isStrumKey = false;
+        for (int i = 0; i < 4; i++)
         {
-        case SDLK_RETURN:
-            if (isPaused_)
+            if (event.key.key == appContext->keybinds[i])
             {
-                conductor_->play();
-                isPaused_ = false;
+                if (playfield_)
+                {
+                    playfield_->handleStrumInput(event.key.key, true);
+                }
+                isStrumKey = true;
+                break;
             }
-            else
-            {
-                conductor_->pause();
-                isPaused_ = true;
-            }
-            break;
-        case KEYBIND_STRUM_LEFT:
-        case KEYBIND_STRUM_DOWN:
-        case KEYBIND_STRUM_UP:
-        case KEYBIND_STRUM_RIGHT:
-            if (playfield_) {
-                playfield_->handleStrumInput(event.key.key, true);
-            }
-            break;
-        case SDLK_ESCAPE:
-            conductor_->stop();
-            requestStateSwitch(STATE_SONG_SELECT, nullptr);
-            break;
         }
-    } else if (event.type == SDL_EVENT_KEY_UP) {
-        switch (event.key.key)
+        
+        if (!isStrumKey)
         {
-            case KEYBIND_STRUM_LEFT:
-            case KEYBIND_STRUM_DOWN:
-            case KEYBIND_STRUM_UP:
-            case KEYBIND_STRUM_RIGHT:
-                if (playfield_) {
+            switch (event.key.key)
+            {
+            case SDLK_RETURN:
+                if (isPaused_)
+                {
+                    conductor_->play();
+                    isPaused_ = false;
+                }
+                else
+                {
+                    conductor_->pause();
+                    isPaused_ = true;
+                }
+                break;
+            case SDLK_ESCAPE:
+                conductor_->stop();
+                requestStateSwitch(STATE_SONG_SELECT, nullptr);
+                break;
+            }
+        }
+    }
+    else if (event.type == SDL_EVENT_KEY_UP)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (event.key.key == appContext->keybinds[i])
+            {
+                if (playfield_)
+                {
                     playfield_->handleStrumInput(event.key.key, false);
                 }
                 break;
+            }
         }
     }
 }

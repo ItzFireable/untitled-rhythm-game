@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include <utils/AudioManager.h>
+#include <utils/SettingsManager.h>
 #include <utils/Variables.h>
 
 #include <BaseState.h>
@@ -12,6 +13,8 @@
 #include <states/PlayState.h>
 #include <states/ResultsState.h>
 #include <objects/FPSCounter.h>
+
+#include <utils/OsuUtils.h>
 
 BaseState *state = NULL;
 void* statePayload = nullptr;
@@ -21,6 +24,7 @@ int prevState = -1;
 
 int WINDOW_WIDTH = 1600;
 int WINDOW_HEIGHT = 900;
+int FRAMERATE_CAP = 999;
 
 Uint64 lastInputTick = 0;
 Uint64 lastFrameTick = 0;
@@ -102,8 +106,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_Fail();
     }
 
+    SettingsManager *settingsManager = new SettingsManager();
+    settingsManager->loadSettings();
+
     char *title = (char *)malloc(256);
     snprintf(title, 256, "%s v%s", GAME_NAME, GAME_VERSION);
+
+    WINDOW_WIDTH = settingsManager->getSetting<int>("windowWidth", 1600);
+    WINDOW_HEIGHT = settingsManager->getSetting<int>("windowHeight", 900);
+
+    FRAMERATE_CAP = settingsManager->getSetting<int>("fpsCap", 999);
+    TARGET_TICK_DURATION = SDL_GetPerformanceFrequency() / FRAMERATE_CAP;
 
     SDL_Window *window = SDL_CreateWindow(title, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE | SDL_WINDOW_TRANSPARENT);
     if (!window)
@@ -129,6 +142,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     app->debugInfo->update();
 
     app->switchState = setState;
+    app->settingsManager = settingsManager;
+
+    OsuUtils* osuUtils = new OsuUtils();
+    osuUtils->parseOsuDatabase();
+
+    const std::string keyNames[4] = {"keyLeft", "keyDown", "keyUp", "keyRight"};
+    const std::string defaults[4] = {"A", "S", "K", "L"};
+    
+    for (int i = 0; i < 4; i++) {
+        std::string key = app->settingsManager->getSetting(keyNames[i], defaults[i]);
+        app->keybinds[i] = SDL_GetKeyFromName(key.c_str());
+    }
 
     if (!app->renderer)
     {

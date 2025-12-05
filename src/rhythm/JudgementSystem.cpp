@@ -33,7 +33,7 @@ int JudgementSystem::getTotalNotes() {
     return total;
 }
 
-Judgement JudgementSystem::getJudgementForTimingOffset(float offsetMs, bool isRelease) {
+JudgementResult JudgementSystem::getJudgementForTimingOffset(float offsetMs, bool isRelease) {
     float absOffset = std::fabs(offsetMs);
 
     for (const auto& entry : judgementData) {
@@ -42,11 +42,11 @@ Judgement JudgementSystem::getJudgementForTimingOffset(float offsetMs, bool isRe
             windowMs *= 1.5f;
 
         if (absOffset <= windowMs) {
-            return entry.judgement;
+            return { entry.judgement, absOffset };
         }
     }
 
-    return Judgement::Miss;
+    return { Judgement::Miss, absOffset };
 }
 
 float JudgementSystem::getMaxMissWindowMs() {

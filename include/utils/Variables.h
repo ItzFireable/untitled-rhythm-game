@@ -19,7 +19,7 @@ enum AppStateID
     STATE_COUNT
 };
 
-static constexpr int FRAMERATE_CAP = 999;
+extern int FRAMERATE_CAP;
 extern int WINDOW_WIDTH;
 extern int WINDOW_HEIGHT;
 
@@ -30,14 +30,10 @@ extern Uint64 lastFrameTick;
 extern float currentInputLatencyMs;
 extern Uint64 TARGET_TICK_DURATION;
 
-#define KEYBIND_STRUM_LEFT SDLK_Z
-#define KEYBIND_STRUM_DOWN SDLK_X
-#define KEYBIND_STRUM_UP SDLK_COMMA
-#define KEYBIND_STRUM_RIGHT SDLK_PERIOD
-
 class FPSCounter; 
 class DebugInfo;
 class BaseState;
+class SettingsManager;
 
 using StateSwitcher = void (*)(AppContext*, int, void*);
 
@@ -57,8 +53,10 @@ struct AppContext
     SDL_AppResult appQuit = SDL_APP_CONTINUE;
 
     AudioManager& audioManager = AudioManager::getInstance();
-    FPSCounter* fpsCounter = nullptr;
+    
     DebugInfo* debugInfo = nullptr;
+    FPSCounter* fpsCounter = nullptr;
+    SettingsManager* settingsManager = nullptr;
 
     StateSwitcher switchState = nullptr;
     BaseState *currentState = nullptr;
@@ -72,4 +70,6 @@ struct AppContext
     int nextState = -1;
     void* nextStatePayload = nullptr;
     bool transitioningOut = true;
+
+    SDL_Keycode keybinds[4] = {SDLK_A, SDLK_S, SDLK_K, SDLK_L};
 };

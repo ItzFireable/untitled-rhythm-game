@@ -12,6 +12,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <filesystem>
 
 enum class LogLevel {
     GAME_INFO, 
@@ -49,7 +50,7 @@ private:
     void processLogQueue();
 
     std::string levelToString(LogLevel level);
-    std::string getCurrentTimestamp();
+    std::string getCurrentTimestamp(bool showMs = true);
     std::string getCurrentDate();
 };
 

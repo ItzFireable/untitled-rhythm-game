@@ -17,7 +17,7 @@ std::string Logger::getCurrentDate() {
     return ss.str();
 }
 
-std::string Logger::getCurrentTimestamp() {
+std::string Logger::getCurrentTimestamp(bool showMs) {
     using namespace std::chrono;
     
     auto now = system_clock::now();
@@ -28,20 +28,43 @@ std::string Logger::getCurrentTimestamp() {
     
     std::stringstream ss;
     ss << std::put_time(local_time, "%H:%M:%S");
-    ss << "." << std::setw(3) << std::setfill('0') << ms.count();
+
+    if (showMs) {
+        ss << "." << std::setw(3) << std::setfill('0') << ms.count();
+    }
 
     return ss.str();
 }
 
 Logger::Logger() {
     std::string currentDate = getCurrentDate();
-    std::string currentTime = getCurrentTimestamp();
+    std::string currentTime = getCurrentTimestamp(false);
+    std::string logDirectory = "logs"; 
 
-    logFile_.open("logs/game_" + currentDate + "_" + currentTime + ".log", std::ios::out | std::ios::trunc); 
-    if (!logFile_.is_open()) {
-        std::cerr << "ERROR: Failed to open log file 'game.log'. Logging to console only." << std::endl;
+    try {
+        if (!std::filesystem::exists(logDirectory)) {
+            if (!std::filesystem::create_directories(logDirectory)) {
+                std::cerr << "ERROR: Failed to create log directory: " << logDirectory << ". Logging to console only." << std::endl;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: Filesystem error while creating log directory: " << e.what() << ". Logging to console only." << std::endl;
     }
-    
+
+    for (auto& ch : currentTime) {
+        if (ch == ':' || ch == ' ') {
+            ch = '-';
+        }
+    }
+
+    std::string logFileName = "game_" + currentDate + "_" + currentTime + ".log";
+    logFile_.open(logDirectory + "/" + logFileName, std::ios::out | std::ios::trunc);
+    std::cout << "Log file created at: " << logDirectory + "/" + logFileName << std::endl;
+
+    if (!logFile_.is_open()) {
+        std::cerr << "ERROR: Failed to open log file '" << logFileName << "'. Logging to console only." << std::endl;
+    }
+
     logThread_ = std::thread(&Logger::processLogQueue, this);
 }
 

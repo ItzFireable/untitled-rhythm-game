@@ -20,10 +20,10 @@ void Playfield::setConductor(Conductor *conductor)
     conductor_ = conductor;
 }
 
-void Playfield::spawnJudgementEffect(const std::string &judgementName)
+void Playfield::spawnJudgementEffect(const JudgementResult &judgement)
 {
     SDL_Texture *judgementTexture = nullptr;
-    std::string filePath = skinUtils_->getFilePathForSkinElement("judgements/" + judgementName);
+    std::string filePath = skinUtils_->getFilePathForSkinElement("judgements/" + judgementSystem_->judgementToString(judgement.judgement));
 
     auto it = judgementSpriteCache_.find(filePath);
     if (it != judgementSpriteCache_.end())
@@ -238,8 +238,8 @@ void Playfield::handleKeyPress(int column) {
     float noteTime = closestNote->getTime() / 1000.0f;
     float timeDiffMs = (noteTime - currentTime) * 1000.0f;
     
-    Judgement j = judgementSystem_->getJudgementForTimingOffset(timeDiffMs);
-    if (j != Judgement::Miss) {
+    JudgementResult j = judgementSystem_->getJudgementForTimingOffset(timeDiffMs);
+    if (j.judgement != Judgement::Miss) {
         closestNote->markAsHit();
         
         if (closestNote->getType() == HOLD_START) {
@@ -251,8 +251,8 @@ void Playfield::handleKeyPress(int column) {
             closestNote->despawnNote();
         }
         
-        judgementSystem_->addJudgement(j);
-        spawnJudgementEffect(judgementSystem_->judgementToString(j));
+        judgementSystem_->addJudgement(j.judgement);
+        spawnJudgementEffect(j);
     }
 }
 
@@ -278,13 +278,13 @@ void Playfield::handleKeyRelease(int column) {
         float endTime = holdNote->getEndTime() / 1000.0f;
         float timeDiffMs = (endTime - currentTime) * 1000.0f;
         
-        Judgement j = judgementSystem_->getJudgementForTimingOffset(timeDiffMs, true);
+        JudgementResult j = judgementSystem_->getJudgementForTimingOffset(timeDiffMs, true);
         
         holdNote->setIsHolding(false);
         holdNote->despawnNote();
-        
-        judgementSystem_->addJudgement(j);
-        spawnJudgementEffect(judgementSystem_->judgementToString(j));
+
+        judgementSystem_->addJudgement(j.judgement);
+        spawnJudgementEffect(j);
         return;
     }
 }
@@ -295,22 +295,11 @@ void Playfield::handleStrumInput(int keybind, bool isKeyDown)
         return;
 
     int strumIndex = -1;
-    switch (keybind)
-    {
-    case KEYBIND_STRUM_LEFT:
-        strumIndex = 0;
-        break;
-    case KEYBIND_STRUM_DOWN:
-        strumIndex = 1;
-        break;
-    case KEYBIND_STRUM_UP:
-        strumIndex = 2;
-        break;
-    case KEYBIND_STRUM_RIGHT:
-        strumIndex = 3;
-        break;
-    default:
-        return; // Not a strum keybind
+    for (int i = 0; i < 4; i++) {
+        if (keybind == appContext_->keybinds[i]) {
+            strumIndex = i;
+            break;
+        }
     }
 
     if (strumIndex >= 0 && strumIndex < static_cast<int>(strums_.size()))
@@ -373,7 +362,7 @@ void Playfield::update(float deltaTime)
                 }
                 
                 judgementSystem_->addJudgement(Judgement::Marvelous);
-                spawnJudgementEffect(judgementSystem_->judgementToString(Judgement::Marvelous));
+                spawnJudgementEffect({ Judgement::Marvelous, 0.0f });
             }
         }
         
@@ -393,7 +382,7 @@ void Playfield::update(float deltaTime)
                 holdNote->despawnNote();
                 
                 judgementSystem_->addJudgement(Judgement::Marvelous);
-                spawnJudgementEffect(judgementSystem_->judgementToString(Judgement::Marvelous));
+                spawnJudgementEffect({ Judgement::Marvelous, 0.0f });
             }
         }
     }
@@ -425,14 +414,14 @@ void Playfield::update(float deltaTime)
                     if (currentTime > endTime + maxMissWindow) {
                         holdNote->setIsHolding(false);
                         judgementSystem_->addJudgement(Judgement::Miss);
-                        spawnJudgementEffect(judgementSystem_->judgementToString(Judgement::Miss));
+                        spawnJudgementEffect({ Judgement::Miss, maxMissWindow * 1000.0f + 1.0f });
                         holdNote->despawnNote();
                     }
                 } else if (!holdNote->hasBeenHit()) {
                     float startTime = holdNote->getTime() / 1000.0f;
                     if (currentTime > startTime + maxMissWindow) {
                         judgementSystem_->addJudgement(Judgement::Miss);
-                        spawnJudgementEffect(judgementSystem_->judgementToString(Judgement::Miss));
+                        spawnJudgementEffect({ Judgement::Miss, maxMissWindow * 1000.0f + 1.0f });
                         holdNote->despawnNote();
                     }
                 } else {
@@ -446,9 +435,9 @@ void Playfield::update(float deltaTime)
                     float noteTime = note->getTime() / 1000.0f;
                     if (currentTime > noteTime + maxMissWindow) {
                         float timeDiff = (noteTime - currentTime) * 1000.0f;
-                        Judgement j = judgementSystem_->getJudgementForTimingOffset(timeDiff);
-                        judgementSystem_->addJudgement(j);
-                        spawnJudgementEffect(judgementSystem_->judgementToString(j));
+                        JudgementResult j = judgementSystem_->getJudgementForTimingOffset(timeDiff);
+                        judgementSystem_->addJudgement(j.judgement);
+                        spawnJudgementEffect(j);
                         note->despawnNote();
                     }
                 }

@@ -32,6 +32,11 @@ static const JudgementData judgementData[] = {
     { Judgement::Miss, 181 } 
 };
 
+struct JudgementResult {
+    Judgement judgement;
+    float offsetMs;
+};
+
 class JudgementSystem
 {
 public:
@@ -46,7 +51,7 @@ public:
     float getAccuracy();
     float getMaxMissWindowMs();
 
-    Judgement getJudgementForTimingOffset(float offsetMs, bool isRelease = false);
+    JudgementResult getJudgementForTimingOffset(float offsetMs, bool isRelease = false);
 
     std::vector<Judgement> getAllJudgements() {
         std::vector<Judgement> judgements;
