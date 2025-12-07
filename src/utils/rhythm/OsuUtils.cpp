@@ -1,8 +1,5 @@
 #if defined(_WIN32)
-// Define before including Windows headers to prevent conflicts with C++ standard library
-// Although typically not needed for this exact set, it's good defensive programming.
 #define WIN32_LEAN_AND_MEAN
-// Also, define NOMINMAX to prevent conflicts between std::min/max and Windows macros.
 #define NOMINMAX
 #include <shlobj.h>
 #include <knownfolders.h>
@@ -15,8 +12,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <cstdlib>
-#include <utils/Logger.h>
-#include <utils/OsuUtils.h>
+#include <system/Logger.h>
+#include <utils/rhythm/OsuUtils.h>
 
 std::string getBaseDataPath() {
     #if defined(_WIN32)

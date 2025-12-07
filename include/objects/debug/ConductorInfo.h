@@ -4,8 +4,8 @@
 #include <SDL3/SDL.h>
 #include <string>
 #include "rhythm/Conductor.h"
-#include "objects/FPSCounter.h"
-#include "TextObject.h"
+#include "objects/debug/FPSCounter.h"
+#include "objects/TextObject.h"
 
 class ConductorInfo : public FPSCounter {
 public:

@@ -1,17 +1,9 @@
 #include <states/PlayState.h>
-#include <utils/Logger.h>
+#include <system/Logger.h>
 #include <SDL3/SDL.h>
 #include <iostream>
 
 const float bpmThreshold = 200.0f;
-
-std::string PlayState::getChartBackgroundName(ChartData chartData) {
-    auto it = chartData.metadata.find("background");
-    if (it != chartData.metadata.end()) {
-        return it->second;
-    }
-    return "";
-}
 
 void PlayState::init(AppContext *appContext, void *payload)
 {
@@ -22,6 +14,11 @@ void PlayState::init(AppContext *appContext, void *payload)
     {
         GAME_LOG_ERROR("PlayState: No payload data provided");
         return;
+    }
+
+    currentStateData_ = data;
+    if (data->previousStateData) {
+        previousStateData_ = data->previousStateData;
     }
 
     chartData_ = data->chartData;
@@ -45,7 +42,7 @@ void PlayState::init(AppContext *appContext, void *payload)
         return;
     }
 
-    std::string bgName = getChartBackgroundName(chartData_);
+    std::string bgName = ChartUtils::getChartBackgroundName(chartData_);
     if (!bgName.empty())
     {
         std::string bgPath = chartData_.filePath + "/" + bgName;
@@ -63,6 +60,8 @@ void PlayState::init(AppContext *appContext, void *payload)
     }
 
     DebugInfo* debugInfo = appContext->debugInfo;
+    FPSCounter* fpsCounter = appContext->fpsCounter;
+
     conductorInfo_ = new ConductorInfo(renderer, MAIN_FONT_PATH, 16, 7.0f);
     conductorInfo_->setConductor(conductor_.get());
 
@@ -70,20 +69,23 @@ void PlayState::init(AppContext *appContext, void *payload)
     {
         conductorInfo_->setYPosition(debugInfo->getYPosition() + debugInfo->getHeight() + 8.0f);
     }
+    else if (fpsCounter)
+    {
+        conductorInfo_->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
+    }
 
     skinUtils_ = std::make_unique<SkinUtils>();
-    skinUtils_->loadSkin("stars");
+    skinUtils_->loadSkin(appContext->settingsManager->getSetting<std::string>("GAMEPLAY.selectedSkin", "default"));
 
-    gameplayHud_ = new GameplayHud(appContext, skinUtils_.get());
+    gameplayHud_ = new GameplayHud(appContext, skinUtils_.get(), judgementSystem_.get());
     gameplayHud_->setConductor(conductor_.get());
     gameplayHud_->setJudgementSystem(judgementSystem_.get());
 
     playfield_ = new Playfield();
-    playfield_->init(renderer, chartData_.keyCount, screenHeight_, skinUtils_.get());
+    playfield_->init(appContext, chartData_.keyCount, screenHeight_, skinUtils_.get());
     playfield_->setPosition(screenWidth_ / 2.0f, screenHeight_ / 2.0f);
-
     playfield_->setConductor(conductor_.get());
-    playfield_->setAppContext(appContext);
+    playfield_->setGameplayHud(gameplayHud_);
 
     playfield_->setJudgementSystem(judgementSystem_.get());
     playfield_->loadNotes(&chartData_);
@@ -91,7 +93,18 @@ void PlayState::init(AppContext *appContext, void *payload)
     conductor_->play();
     conductor_->setOnSongEndCallback([this]()
     {
-        requestStateSwitch(STATE_RESULTS, nullptr);
+        ResultsData* resultsData = new ResultsData();
+        resultsData->accuracy = judgementSystem_->getAccuracy();
+        resultsData->judgementCounts = judgementSystem_->getCounts();
+        resultsData->judgementResults = judgementSystem_->getResults();
+
+        resultsData->playStateData = new PlayStateData();
+        resultsData->playStateData->songPath = this->currentStateData_->songPath;
+        resultsData->playStateData->chartData = this->currentStateData_->chartData;
+        resultsData->playStateData->playbackRate = this->currentStateData_->playbackRate;
+        resultsData->playStateData->previousStateData = this->previousStateData_;
+        
+        requestStateSwitch(STATE_RESULTS, resultsData);
     });
 
     conductor_->setOnBeatCallback([this](int beat)
@@ -115,12 +128,15 @@ void PlayState::handleEvent(const SDL_Event &event)
     if (!conductor_)
         return;
 
+    if (!playfield_)
+        return;
+
     if (event.type == SDL_EVENT_KEY_DOWN)
     {
         bool isStrumKey = false;
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < playfield_->getKeyCount(); i++)
         {
-            if (event.key.key == appContext->keybinds[i])
+            if (event.key.key == playfield_->getKeybind(i))
             {
                 if (playfield_)
                 {
@@ -149,16 +165,16 @@ void PlayState::handleEvent(const SDL_Event &event)
                 break;
             case SDLK_ESCAPE:
                 conductor_->stop();
-                requestStateSwitch(STATE_SONG_SELECT, nullptr);
+                requestStateSwitch(STATE_SONG_SELECT, previousStateData_);
                 break;
             }
         }
     }
     else if (event.type == SDL_EVENT_KEY_UP)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < playfield_->getKeyCount(); i++)
         {
-            if (event.key.key == appContext->keybinds[i])
+            if (event.key.key == playfield_->getKeybind(i))
             {
                 if (playfield_)
                 {
@@ -197,9 +213,15 @@ void PlayState::update(float deltaTime)
     if (conductorInfo_)
     {
         DebugInfo* debugInfo = appContext->debugInfo;
+        FPSCounter* fpsCounter = appContext->fpsCounter;
+
         if (debugInfo)
         {
             conductorInfo_->setYPosition(debugInfo->getYPosition() + debugInfo->getHeight() + 8.0f);
+        }
+        else if (fpsCounter)
+        {
+            conductorInfo_->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
         }
         conductorInfo_->update();
     }
@@ -219,6 +241,13 @@ void PlayState::render()
 
 void PlayState::destroy()
 {
+    if (gameplayHud_)
+    {
+        gameplayHud_->destroy();
+        delete gameplayHud_;
+        gameplayHud_ = nullptr;
+    }
+
     if (conductor_)
     {
         conductor_->stop();

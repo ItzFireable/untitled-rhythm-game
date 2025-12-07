@@ -1,9 +1,9 @@
 #ifndef HOLDNOTE_H
 #define HOLDNOTE_H
 
-#include <rhythm/Note.h>
-#include <rhythm/ChartManager.h>
 #include <rhythm/JudgementSystem.h>
+#include <objects/rhythm/Note.h>
+#include <utils/rhythm/ChartUtils.h>
 
 class Playfield;
 

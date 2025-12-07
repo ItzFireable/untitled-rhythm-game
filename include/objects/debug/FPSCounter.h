@@ -3,7 +3,7 @@
 
 #include <SDL3/SDL.h>
 #include <string>
-#include "TextObject.h"
+#include "objects/TextObject.h"
 
 struct AppContext;
 

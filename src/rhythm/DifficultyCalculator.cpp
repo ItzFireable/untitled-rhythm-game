@@ -16,6 +16,8 @@ void DifficultyCalculator::setConfig(const DifficultyConfig& cfg) {
 void DifficultyCalculator::extractFeatures(ChartData& chartData, float rate) {
     processedNotes.clear();
     for (const auto& n : chartData.notes) {
+        if (n.type == MINE) continue;
+
         int adjustedTime = static_cast<int>(n.time / rate);
         processedNotes.push_back({adjustedTime, n.column, n.type});
     }

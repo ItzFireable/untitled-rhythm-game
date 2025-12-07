@@ -1,9 +1,9 @@
 #ifndef NOTE_H
 #define NOTE_H
 
-#include <rhythm/Strum.h>
-#include <rhythm/ChartManager.h>
+#include <objects/rhythm/Strum.h>
 #include <rhythm/JudgementSystem.h>
+#include <utils/rhythm/ChartUtils.h>
 
 class Playfield;
 
@@ -16,11 +16,16 @@ public:
     void update(float deltaTime) override;
     void render(SDL_Renderer *renderer) override;
 
-    static void LoadSharedTexture(SDL_Renderer* renderer, Playfield* pf);
+    static void LoadSharedTextures(SDL_Renderer* renderer, Playfield* pf);
     static void DestroySharedTexture();
 
     void setTime(int t) { time = t; }
-    void setType(NoteType t) { type = t; }
+    void setType(NoteType t) { 
+        type = t; 
+        if (type == MINE) {
+            setRenderTexture(mineTexture_, false);
+        }
+    }
     void setColumn(int column) { column_ = column; }
     void setSpeedModifier(float speed) { speedModifier_ = speed; }
 
@@ -42,6 +47,7 @@ public:
 
     void setAlphaMod(Uint8 alpha);
     SDL_Texture* getSharedTexture() const { return sharedTexture_; }
+    SDL_Texture* getMineTexture() const { return mineTexture_; }
 private:
     float time;
     int column_;
@@ -54,6 +60,7 @@ private:
     float speedModifier_ = 1.0f;
 
     static SDL_Texture* sharedTexture_;
+    static SDL_Texture* mineTexture_;
 };
 
 #endif

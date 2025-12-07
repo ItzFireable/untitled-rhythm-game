@@ -1,8 +1,8 @@
 #ifndef DIFFICULTY_CALCULATOR_H
 #define DIFFICULTY_CALCULATOR_H
 
-#include "rhythm/ChartManager.h" 
 #include "utils/Utils.h"        
+#include "utils/rhythm/ChartUtils.h" 
 
 struct CalculatedNote {
     int time;

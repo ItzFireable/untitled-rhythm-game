@@ -2,7 +2,7 @@
 #define BASE_STATE_H
 
 #include <string>
-#include "utils/Variables.h"
+#include "system/Variables.h"
 #include <SDL3/SDL.h>
 
 class BaseState

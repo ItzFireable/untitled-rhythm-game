@@ -1,4 +1,4 @@
-#include <rhythm/Strum.h>
+#include <objects/rhythm/Strum.h>
 #include <rhythm/Playfield.h>
 
 Strum::Strum(float x, float y, float width, float height, int column)

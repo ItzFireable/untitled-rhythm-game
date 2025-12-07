@@ -1,6 +1,6 @@
 #include "rhythm/Conductor.h"
-#include "utils/AudioManager.h"
-#include "utils/Logger.h"
+#include "system/AudioManager.h"
+#include "system/Logger.h"
 #include <cmath>
 #include <algorithm>
 
@@ -56,22 +56,33 @@ bool Conductor::initialize(const std::vector<TimingPoint> &timingPoints, const s
 
 void Conductor::loadAndPlay(float startTime, float crossfadeDuration)
 {
+    loadAndPlayAsync(startTime, crossfadeDuration);
+}
+
+void Conductor::loadAndPlayAsync(float startTime, float crossfadeDuration)
+{
     if (!isInitialized_)
     {
         GAME_LOG_ERROR("Conductor is not initialized! Cannot load audio.");
         return;
     }
 
-    AudioManager &audio = AudioManager::getInstance();
+    isLoadingAudio_.store(true);
+    pendingStartTime_ = startTime;
+    pendingCrossfade_ = crossfadeDuration;
 
-    if (!audio.switchMusicStream(audioPath_, crossfadeDuration, startTime))
-    {
-        GAME_LOG_ERROR("Conductor: Failed to switch music stream to: " + audioPath_);
-        return;
-    }
-
-    audio.setMusicPlaybackRate(playbackRate_);
-    isPlaying_ = true;
+    audioLoadFuture_ = std::async(std::launch::async, [this, startTime, crossfadeDuration]() {
+        AudioManager &audio = AudioManager::getInstance();
+        
+        bool success = audio.switchMusicStream(audioPath_, crossfadeDuration, startTime);
+        
+        if (success) {
+            audio.setMusicPlaybackRate(playbackRate_);
+        }
+        
+        isPlaying_ = success;
+        return success;
+    });
 }
 
 void Conductor::play()
@@ -132,8 +143,49 @@ void Conductor::update(float deltaTime)
 {
     if (!isInitialized_)
         return;
-    if (hasTriggeredSongEnd_)
+    if (hasTriggeredSongEnd_ && !enableLooping_)
         return;
+
+    if (isInLoopPause_)
+    {
+        loopPauseTimer_ += deltaTime;
+        
+        if (loopPauseTimer_ >= loopPauseDuration_)
+        {
+            isInLoopPause_ = false;
+            loopPauseTimer_ = 0.0f;
+            hasTriggeredSongEnd_ = false;
+            hasAudioStarted_ = true;
+            justStartedAudio_ = true;
+            isLoopFadingOut_ = false;
+            loopFadeOutTimer_ = 0.0f;
+            songPosition_ = loopStartTime_;
+            smoothedPosition_ = loopStartTime_;
+            
+            AudioManager& audio = AudioManager::getInstance();
+            audio.setMusicVolume(originalVolume_);
+            loadAndPlayAsync(loopStartTime_, crossfadeDuration_);
+        }
+        return;
+    }
+
+    if (isLoadingAudio_.load() && audioLoadFuture_.valid())
+    {
+        if (audioLoadFuture_.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready)
+        {
+            bool success = audioLoadFuture_.get();
+            isLoadingAudio_.store(false);
+            
+            if (success) {
+                isPlaying_ = true;
+            } else {
+                GAME_LOG_ERROR("Conductor: Failed to switch music stream to: " + audioPath_);
+                isPlaying_ = false;
+            }
+        }
+
+        return;
+    }
 
     if (!hasAudioStarted_)
     {
@@ -146,7 +198,7 @@ void Conductor::update(float deltaTime)
             justStartedAudio_ = true;
             smoothedPosition_ = 0.0f;
             
-            loadAndPlay(0.0f, crossfadeDuration_);
+            loadAndPlayAsync(0.0f, crossfadeDuration_);
 
             audioPosition_ = 0.0f;
             previousAudioPosition_ = 0.0f;
@@ -170,19 +222,68 @@ void Conductor::update(float deltaTime)
             songPosition_ = rawPosition;
         }
 
+        if (enableLooping_ && loopEndTime_ > 0.0f)
+        {
+            float timeUntilEnd = loopEndTime_ - songPosition_;
+            if (timeUntilEnd <= loopFadeOutDuration_ && !isLoopFadingOut_)
+            {
+                isLoopFadingOut_ = true;
+                loopFadeOutTimer_ = 0.0f;
+                originalVolume_ = audio.getMusicVolume();
+            }
+            
+            if (isLoopFadingOut_)
+            {
+                loopFadeOutTimer_ += deltaTime;
+                float fadeProgress = loopFadeOutTimer_ / loopFadeOutDuration_;
+                float currentVolume = originalVolume_ * (1.0f - std::min(1.0f, fadeProgress));
+                audio.setMusicVolume(currentVolume);
+            }
+            
+            if (songPosition_ >= loopEndTime_)
+            {
+                audio.stopMusicStream();
+                isInLoopPause_ = true;
+                loopPauseTimer_ = 0.0f;
+                return;
+            }
+        }
+
         if (audio.hasSongEndedNaturally())
         {
-            hasTriggeredSongEnd_ = true;
-            isPlaying_ = false;
-            
-            if (onSongEndCallback_)
+            if (enableLooping_)
             {
-                onSongEndCallback_();
+                if (!isLoopFadingOut_)
+                {
+                    audio.stopMusicStream();
+                    isInLoopPause_ = true;
+                    loopPauseTimer_ = 0.0f;
+                    audio.clearSongEndedFlag();
+                    return;
+                }
+                else
+                {
+                    audio.stopMusicStream();
+                    isInLoopPause_ = true;
+                    loopPauseTimer_ = 0.0f;
+                    audio.clearSongEndedFlag();
+                    return;
+                }
             }
+            else
+            {
+                hasTriggeredSongEnd_ = true;
+                isPlaying_ = false;
+                
+                if (onSongEndCallback_)
+                {
+                    onSongEndCallback_();
+                }
 
-            audio.clearSongEndedFlag();
-            audio.stopMusicStream();
-            return;
+                audio.clearSongEndedFlag();
+                audio.stopMusicStream();
+                return;
+            }
         }
     }
 

@@ -2,15 +2,17 @@
 #define PLAYFIELD_H
 
 #include <SDL3/SDL.h>
-#include <rhythm/Strum.h>
-#include <rhythm/Note.h>
-#include <rhythm/HoldNote.h>
-#include <utils/Logger.h>
-#include <rhythm/ChartManager.h>
+#include <objects/rhythm/Strum.h>
+#include <objects/rhythm/Note.h>
+#include <objects/rhythm/HoldNote.h>
+#include <system/Logger.h>
+#include <utils/rhythm/ChartUtils.h>
 #include <rhythm/Conductor.h>
-#include <utils/SkinUtils.h>
+#include <utils/rhythm/SkinUtils.h>
 #include <rhythm/JudgementSystem.h>
-#include <utils/Variables.h>
+#include <utils/SettingsManager.h>
+#include <system/Variables.h>
+#include <rhythm/GameplayHud.h>
 #include <vector>
 #include <map>
 
@@ -19,7 +21,7 @@ public:
     Playfield();
     ~Playfield();
 
-    void init(SDL_Renderer* renderer, int keyCount, float height = 600.0f, SkinUtils* skinUtils = nullptr);
+    void init(AppContext* appContext, int keyCount, float height = 600.0f, SkinUtils* skinUtils = nullptr);
     void update(float deltaTime);
     void render(SDL_Renderer* renderer);
     void destroy();
@@ -58,16 +60,25 @@ public:
         return playfieldHeight_;
     }
 
-    void loadNotes(ChartData* chartData);
-    void setAppContext(AppContext* appContext) {
-        appContext_ = appContext;
+    float getPlayfieldWidth() const {
+        return playfieldWidth_;
     }
+
+    void loadNotes(ChartData* chartData);
     void setConductor(Conductor* conductor);
     Conductor* getConductor() const {
         return conductor_;
     }
 
     int getRenderLimit() const { return renderLimit_; }
+    float getKeyCount() const { return keyCount_; }
+    SDL_Keycode getKeybind(int index) const {
+        if (index < 0 || index >= static_cast<int>(keybinds_.size())) {
+            return SDLK_UNKNOWN;
+        }
+        return keybinds_[index];
+    }
+
     float getStrumLinePos() const { return strumLinePos_; }
     float getStrumLineOffset() const { return strumLineOffset_;}
     float getJudgementOffset() const { return judgementOffset_; }
@@ -83,6 +94,9 @@ public:
     void setJudgementSystem(JudgementSystem* judgementSystem) { judgementSystem_ = judgementSystem; }
     JudgementSystem* getJudgementSystem() const { return judgementSystem_; }
 
+    void setGameplayHud(GameplayHud* hud) { gameplayHud_ = hud; }
+    GameplayHud* getGameplayHud() const { return gameplayHud_; }
+
     bool getAutoplay() const { return useAutoplay_; }
 private:
     AppContext* appContext_ = nullptr;
@@ -91,11 +105,14 @@ private:
     JudgementSystem* judgementSystem_ = nullptr;
 
     SkinUtils* skinUtils_ = nullptr;
+    GameplayHud *gameplayHud_ = nullptr;
 
-    bool useAutoplay_ = false;
+    std::vector<SDL_Keycode> keybinds_;
+
+    bool useAutoplay_ = true;
     std::map<int, bool> keysPressed_;
 
-    int renderLimit_ = 250;
+    int renderLimit_ = 100;
     float strumLinePos_ = 0.0f;
     float strumLineOffset_ = -32.0f;
 

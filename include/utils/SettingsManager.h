@@ -6,7 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <utils/Utils.h>
-#include <utils/Logger.h>
+#include <system/Logger.h>
 
 using SettingsConfigMap = std::map<std::string, std::string>;
 
@@ -48,6 +48,9 @@ public:
     void saveSettings() const;
 private:
     mutable SettingsConfigMap settingConfig_;
+    
+    // Helper to parse section headers
+    std::string parseSectionHeader(const std::string& line) const;
 };
 
 template <>

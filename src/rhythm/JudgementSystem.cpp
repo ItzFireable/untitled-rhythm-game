@@ -1,5 +1,5 @@
 #include "rhythm/JudgementSystem.h"
-#include <utils/Logger.h>
+#include <system/Logger.h>
 #include <algorithm>
 #include <cmath>
 
@@ -16,8 +16,9 @@ void JudgementSystem::reset() {
     }
 }
 
-void JudgementSystem::addJudgement(Judgement j) {
+void JudgementSystem::addJudgement(Judgement j, float offsetMs) {
     counts_[j]++;
+    results_.push_back({j, offsetMs});
 }
 
 int JudgementSystem::getJudgementCount(Judgement j) {
@@ -57,11 +58,11 @@ float JudgementSystem::getAccuracy() {
     int total = getTotalNotes();
     if (total == 0) return 100.0f;
 
-    const float MARVELOUS_SCORE = 1.0f;
-    const float PERFECT_SCORE = 1.0f;
-    const float GREAT_SCORE = 0.8f;
-    const float GOOD_SCORE = 0.5f;
-    const float BAD_SCORE = 0.1f;
+    const float MARVELOUS_SCORE = 300.0f;
+    const float PERFECT_SCORE = 300.0f;
+    const float GREAT_SCORE = 200.0f;
+    const float GOOD_SCORE = 100.0f;
+    const float BAD_SCORE = 50.0f;
     const float MISS_SCORE = 0.0f;
 
     float scorePoints = 

@@ -23,7 +23,7 @@ void Playfield::setConductor(Conductor *conductor)
 void Playfield::spawnJudgementEffect(const JudgementResult &judgement)
 {
     SDL_Texture *judgementTexture = nullptr;
-    std::string filePath = skinUtils_->getFilePathForSkinElement("judgements/" + judgementSystem_->judgementToString(judgement.judgement));
+    std::string filePath = skinUtils_->getFilePathForSkinElement("judgements/" + JudgementSystem::judgementToString(judgement.judgement));
 
     auto it = judgementSpriteCache_.find(filePath);
     if (it != judgementSpriteCache_.end())
@@ -58,7 +58,7 @@ float Playfield::getStrumXPosition(int index, int keyCount, float playfieldWidth
     float paddingRight_;
 
     Playfield::getPadding(paddingLeft_, paddingRight_);
-    float gapSize = skinUtils_->getStrumlineGap();
+    float gapSize = skinUtils_->getSkinProperty<float>("strumlineGap", 0.0f);
 
     float totalReservedPadding = paddingLeft_ + paddingRight_;
     float availableWidth = playfieldWidth - totalReservedPadding;
@@ -75,25 +75,51 @@ float Playfield::getStrumXPosition(int index, int keyCount, float playfieldWidth
     return playfieldLeftEdge + centeringOffset + (index * keyWidth) + (index * gapSize);
 }
 
-void Playfield::init(SDL_Renderer *renderer, int keyCount, float height, SkinUtils* skinUtils)
+std::string numberToString(int number) {
+    static const std::unordered_map<int, std::string> numberMap = {
+        {0, "Zero"}, {1, "One"}, {2, "Two"}, {3, "Three"}, {4, "Four"},
+        {5, "Five"}, {6, "Six"}, {7, "Seven"}, {8, "Eight"}, {9, "Nine"}
+    };
+    
+    auto it = numberMap.find(number);
+    return (it != numberMap.end()) ? it->second : std::to_string(number);
+}
+
+void Playfield::init(AppContext *appContext, int keyCount, float height, SkinUtils* skinUtils)
 {
-    renderer_ = renderer;
+    appContext_ = appContext;
+    renderer_ = appContext->renderer;
+
     keyCount_ = keyCount;
     skinUtils_ = skinUtils;
+    
+    for (int i = 0; i < keyCount; i++) {
+        std::string key = appContext_->settingsManager->getSetting<std::string>("KEYS=" + std::to_string(keyCount_) + ".key" + numberToString(i + 1), "");
+        keybinds_.push_back(SDL_GetKeyFromName(key.c_str()));
+    }
 
-    float fullPlayfieldWidth = skinUtils_->getPlayfieldWidth();
+    float fullPlayfieldWidth = skinUtils_->getSkinProperty<float>("playfieldWidth", 550.0f);
+    bool scalePlayfield = skinUtils_->getSkinProperty<bool>("scalePlayfield", true);
+
+    if (scalePlayfield && keyCount_ != 4) {
+       fullPlayfieldWidth *= (keyCount_ / 4.0f);
+    }
+
     playfieldWidth_ = fullPlayfieldWidth;
 
-    setPadding(skinUtils_->getPadding(), skinUtils_->getPadding());
+    float padding = skinUtils_->getSkinProperty<float>("playfieldPadding", 16.0f);
+    setPadding(padding, padding);
 
-    scrollSpeed_ = skinUtils_->getScrollSpeed();
-    strumLineOffset_ = skinUtils_->getStrumlineOffset();
-    judgementOffset_ = skinUtils_->getJudgementPopupOffset();
+    useAutoplay_ = appContext_->settingsManager->getSetting<bool>("GAMEPLAY.autoplay", false);
+    scrollSpeed_ = appContext_->settingsManager->getSetting<float>("GAMEPLAY.scrollSpeed", 1000.0f);
+    
+    strumLineOffset_ = skinUtils_->getSkinProperty<float>("strumlineOffset", 0.0f);
+    judgementOffset_ = skinUtils_->getSkinProperty<float>("judgementPopupOffset", 0.0f);
 
     playfieldHeight_ = height;
     float paddingLeft_, paddingRight_;
     getPadding(paddingLeft_, paddingRight_);
-    float gapSize = skinUtils_->getStrumlineGap();
+    float gapSize = skinUtils_->getSkinProperty<float>("strumlineGap", 0.0f);
     
     float totalReservedPadding = paddingLeft_ + paddingRight_;
     float availableWidthForKeysAndGaps = playfieldWidth_ - totalReservedPadding;
@@ -117,7 +143,7 @@ void Playfield::init(SDL_Renderer *renderer, int keyCount, float height, SkinUti
 
 void Playfield::loadNotes(ChartData *chartData)
 {
-    Note::LoadSharedTexture(renderer_, this);
+    Note::LoadSharedTextures(renderer_, this);
     HoldNote::LoadSharedTextures(renderer_, this);
 
     std::map<int, HoldNote*> openHoldNotes;
@@ -239,7 +265,11 @@ void Playfield::handleKeyPress(int column) {
     float timeDiffMs = (noteTime - currentTime) * 1000.0f;
     
     JudgementResult j = judgementSystem_->getJudgementForTimingOffset(timeDiffMs);
-    if (j.judgement != Judgement::Miss) {
+    if (closestNote->getType() == MINE) {
+        j.judgement = Judgement::Miss;
+    }
+
+    if (j.judgement != Judgement::Miss || closestNote->getType() == MINE) {
         closestNote->markAsHit();
         
         if (closestNote->getType() == HOLD_START) {
@@ -251,7 +281,11 @@ void Playfield::handleKeyPress(int column) {
             closestNote->despawnNote();
         }
         
-        judgementSystem_->addJudgement(j.judgement);
+        judgementSystem_->addJudgement(j.judgement, timeDiffMs);
+        if (gameplayHud_ && gameplayHud_->getHitErrorBar()) {
+            gameplayHud_->getHitErrorBar()->addHitError(j.judgement, timeDiffMs);
+        }
+
         spawnJudgementEffect(j);
     }
 }
@@ -283,7 +317,11 @@ void Playfield::handleKeyRelease(int column) {
         holdNote->setIsHolding(false);
         holdNote->despawnNote();
 
-        judgementSystem_->addJudgement(j.judgement);
+        judgementSystem_->addJudgement(j.judgement, timeDiffMs);
+        if (gameplayHud_ && gameplayHud_->getHitErrorBar()) {
+            gameplayHud_->getHitErrorBar()->addHitError(j.judgement, timeDiffMs);
+        }
+
         spawnJudgementEffect(j);
         return;
     }
@@ -296,7 +334,7 @@ void Playfield::handleStrumInput(int keybind, bool isKeyDown)
 
     int strumIndex = -1;
     for (int i = 0; i < 4; i++) {
-        if (keybind == appContext_->keybinds[i]) {
+        if (keybind == getKeybind(i)) {
             strumIndex = i;
             break;
         }
@@ -347,6 +385,8 @@ void Playfield::update(float deltaTime)
             Note* note = notes_[i];
             
             if (!note || note->shouldDespawn() || note->hasBeenHit()) continue;
+            if (note->getType() == MINE) continue;
+
             float noteTime = note->getTime() / 1000.0f;
             
             if (currentTime >= noteTime) {
@@ -361,7 +401,10 @@ void Playfield::update(float deltaTime)
                     note->despawnNote();
                 }
                 
-                judgementSystem_->addJudgement(Judgement::Marvelous);
+                judgementSystem_->addJudgement(Judgement::Marvelous, 0.0f);
+                if (gameplayHud_ && gameplayHud_->getHitErrorBar()) {
+                    gameplayHud_->getHitErrorBar()->addHitError(Judgement::Marvelous, 0.0f);
+                }
                 spawnJudgementEffect({ Judgement::Marvelous, 0.0f });
             }
         }
@@ -381,7 +424,10 @@ void Playfield::update(float deltaTime)
                 holdNote->setIsHolding(false);
                 holdNote->despawnNote();
                 
-                judgementSystem_->addJudgement(Judgement::Marvelous);
+                judgementSystem_->addJudgement(Judgement::Marvelous, 0.0f);
+                if (gameplayHud_ && gameplayHud_->getHitErrorBar()) {
+                    gameplayHud_->getHitErrorBar()->addHitError(Judgement::Marvelous, 0.0f);
+                }
                 spawnJudgementEffect({ Judgement::Marvelous, 0.0f });
             }
         }
@@ -408,21 +454,25 @@ void Playfield::update(float deltaTime)
                     note->despawnNote();
                     continue;
                 }
+
+                if (holdNote->isFadingOut()) continue;
                 
                 if (holdNote->isHolding()) {
                     float endTime = holdNote->getEndTime() / 1000.0f;
                     if (currentTime > endTime + maxMissWindow) {
                         holdNote->setIsHolding(false);
-                        judgementSystem_->addJudgement(Judgement::Miss);
+                        holdNote->startFadeOut();
+
+                        judgementSystem_->addJudgement(Judgement::Miss, maxMissWindow * 1000.0f + 1.0f);
                         spawnJudgementEffect({ Judgement::Miss, maxMissWindow * 1000.0f + 1.0f });
-                        holdNote->despawnNote();
                     }
                 } else if (!holdNote->hasBeenHit()) {
                     float startTime = holdNote->getTime() / 1000.0f;
                     if (currentTime > startTime + maxMissWindow) {
-                        judgementSystem_->addJudgement(Judgement::Miss);
+                        holdNote->startFadeOut();
+
+                        judgementSystem_->addJudgement(Judgement::Miss, maxMissWindow * 1000.0f + 1.0f);
                         spawnJudgementEffect({ Judgement::Miss, maxMissWindow * 1000.0f + 1.0f });
-                        holdNote->despawnNote();
                     }
                 } else {
                     float endTime = holdNote->getEndTime() / 1000.0f;
@@ -435,10 +485,11 @@ void Playfield::update(float deltaTime)
                     float noteTime = note->getTime() / 1000.0f;
                     if (currentTime > noteTime + maxMissWindow) {
                         float timeDiff = (noteTime - currentTime) * 1000.0f;
-                        JudgementResult j = judgementSystem_->getJudgementForTimingOffset(timeDiff);
-                        judgementSystem_->addJudgement(j.judgement);
-                        spawnJudgementEffect(j);
-                        note->despawnNote();
+                        if (note->getType() != MINE) {
+                            judgementSystem_->addJudgement(Judgement::Miss, timeDiff);
+                            spawnJudgementEffect({ Judgement::Miss, timeDiff });
+                            note->despawnNote();
+                        }
                     }
                 }
             }
@@ -477,15 +528,25 @@ void Playfield::update(float deltaTime)
 
 void Playfield::render(SDL_Renderer *renderer)
 {
-    SDL_FRect playfieldRect = {
-        positionX_ - playfieldWidth_ / 2,
-        positionY_ - playfieldHeight_ / 2,
+    if (!renderer)
+        return;
 
-        playfieldWidth_,
-        playfieldHeight_};
+    if (!appContext_ || !skinUtils_) {
+        return;
+    }
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 128);
-    SDL_RenderFillRect(renderer, &playfieldRect);
+    if (skinUtils_->getSkinProperty<bool>("playfieldBackgroundEnabled", true) && skinUtils_->getSkinProperty<float>("playfieldBackgroundOpacity", 0.5f) > 0.0f)
+    {
+        SDL_FRect playfieldRect = {
+            positionX_ - playfieldWidth_ / 2,
+            positionY_ - playfieldHeight_ / 2,
+
+            playfieldWidth_,
+            playfieldHeight_};
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255 * skinUtils_->getSkinProperty<float>("playfieldBackgroundOpacity", 0.5f));
+        SDL_RenderFillRect(renderer, &playfieldRect);
+    }
 
     for (auto &strum : strums_)
     {

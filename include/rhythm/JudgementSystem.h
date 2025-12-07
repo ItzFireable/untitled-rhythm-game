@@ -5,6 +5,8 @@
 #include <map>
 #include <vector>
 
+#include <SDL3/SDL.h>
+
 enum class Judgement {
     First = 0,
 
@@ -20,16 +22,17 @@ enum class Judgement {
 
 struct JudgementData {
     Judgement judgement;
+    SDL_Color color;
     int windowMs;
 };
 
 static const JudgementData judgementData[] = {
-    { Judgement::Marvelous, 22 },
-    { Judgement::Perfect, 45 },
-    { Judgement::Great, 90 },
-    { Judgement::Good, 135 },
-    { Judgement::Bad, 180 },
-    { Judgement::Miss, 181 } 
+    { Judgement::Marvelous, {255, 255, 255, 255}, 22 },
+    { Judgement::Perfect, {255, 237, 37, 255}, 45 },
+    { Judgement::Great, {140, 232, 130, 255}, 90 },
+    { Judgement::Good, {106, 168, 255, 255}, 135 },
+    { Judgement::Bad, {183, 130, 232, 255}, 180 },
+    { Judgement::Miss, {255, 0, 0, 255}, 181 } 
 };
 
 struct JudgementResult {
@@ -43,7 +46,7 @@ public:
     JudgementSystem();
     ~JudgementSystem();
     
-    void addJudgement(Judgement j);
+    void addJudgement(Judgement j, float offsetMs);
     void reset();
 
     int getTotalNotes();
@@ -53,7 +56,7 @@ public:
 
     JudgementResult getJudgementForTimingOffset(float offsetMs, bool isRelease = false);
 
-    std::vector<Judgement> getAllJudgements() {
+    static std::vector<Judgement> getAllJudgements() {
         std::vector<Judgement> judgements;
         int first = static_cast<int>(Judgement::First);
         int last = static_cast<int>(Judgement::Last);
@@ -63,7 +66,7 @@ public:
         return judgements;
     }
 
-    inline std::string judgementToString(Judgement j)
+    static std::string judgementToString(Judgement j)
     {
         switch (j)
         {
@@ -84,8 +87,28 @@ public:
         }
     }
 
+    static SDL_Color judgementToColor(Judgement j)
+    {
+        for (const auto& data : judgementData)
+        {
+            if (data.judgement == j)
+            {
+                return data.color;
+            }
+        }
+        return {255, 255, 255, 255};
+    }
+
+    std::vector<JudgementResult> getResults() const {
+        return results_;
+    }
+
+    std::map<Judgement, int> getCounts() const {
+        return counts_;
+    }
 private:
     std::map<Judgement, int> counts_;
+    std::vector<JudgementResult> results_;
 };
 
 #endif

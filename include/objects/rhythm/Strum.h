@@ -4,9 +4,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <utils/Utils.h>
-#include <utils/Logger.h>
+#include <system/Logger.h>
 #include <rhythm/Conductor.h>
-#include <utils/SkinUtils.h>
+#include <utils/rhythm/SkinUtils.h>
 #include <vector>
 
 class Playfield;

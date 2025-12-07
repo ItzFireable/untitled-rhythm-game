@@ -6,14 +6,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-file(GLOB SOURCES CONFIGURE_DEPENDS 
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS 
     "src/*.cpp"
-    "src/utils/*.cpp"
-    "src/objects/*.cpp"
-    "src/states/*.cpp"
-    "src/rhythm/*.cpp"
 )
-list(APPEND SOURCES "${CMAKE_SOURCE_DIR}/src/utils/stb_vorbis_impl.cpp")
 
 option(USE_VENDORED "Use vendored libraries" ON)
 option(USE_CONSOLE "Use console application" OFF)
@@ -73,9 +68,16 @@ add_custom_command(TARGET app POST_BUILD
     COMMENT "Copying OpenAL32.dll to executable directory"
 )
 
+set(ASSETS_SOURCE_DIR ${CMAKE_SOURCE_DIR}/assets)
+set(ASSETS_TARGET_DIR $<TARGET_FILE_DIR:app>/assets)
+
 add_custom_command(TARGET app POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:app>/assets
+    COMMAND ${CMAKE_COMMAND}
+        -D _SOURCE=${ASSETS_SOURCE_DIR}
+        -D _TARGET=${ASSETS_TARGET_DIR}
+        -P
+        ${CMAKE_CURRENT_SOURCE_DIR}/makefiles/check_and_copy_assets.cmake
+    COMMENT "Conditionally copying assets to build directory."
 )
 
 target_compile_definitions(app PRIVATE SDL_MAIN_USE_CALLBACKS)

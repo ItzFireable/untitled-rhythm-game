@@ -3,8 +3,8 @@
 
 #include <SDL3/SDL.h>
 #include <string>
-#include "TextObject.h"
-#include "objects/FPSCounter.h"
+#include "objects/TextObject.h"
+#include "objects/debug/FPSCounter.h"
 
 class DebugInfo : public FPSCounter {
 public:

@@ -5,8 +5,9 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <system/Logger.h>
 
-enum NoteType { TAP, HOLD_START, HOLD_END };
+enum NoteType { TAP, HOLD_START, HOLD_END, MINE };
 
 struct NoteStruct {
     float time;
@@ -33,13 +34,19 @@ struct ChartData {
     int keyCount = 4;
 };
 
-class ChartManager {
+class ChartUtils {
 public:
-    static ChartData parseChart(const std::string& filename, const std::string& content);
+    static std::string getChartBackgroundName(const ChartData& chartData);
+    static std::string getChartInfo(const ChartData& chartData, float selectedRate);
+
+    static ChartData parseChart(const std::string& filePath, const std::string& filename, const std::string& content);
+    static std::map<std::string, ChartData> parseChartMultiple(const std::string& filePath, const std::string& filename, const std::string& content);
+    static std::string saveVsc(const std::string& filename, const ChartData& chartData);
     
 private:
     static ChartData parseVsc(const std::string& content);
     static ChartData convertOsuToChartData(const std::string& osuContent);
+    static std::vector<ChartData> convertSmToChartDataMultiple(const std::string& smContent);
 };
 
 #endif

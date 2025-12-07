@@ -1,7 +1,7 @@
 #define _USE_MATH_DEFINES
 
 #include "utils/Utils.h"
-#include "utils/Logger.h"
+#include "system/Logger.h"
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
@@ -11,7 +11,12 @@
 #include <cmath>
 #include <sys/stat.h>
 
-static const std::vector<std::string> supportedChartExtensions = {".vsc", ".osu"};
+static const std::vector<std::string> supportedChartExtensions = {
+    ".vsc", 
+    ".osu", 
+    ".sm", 
+    ".ssc"
+};
 
 namespace Utils
 {
@@ -117,6 +122,37 @@ namespace Utils
         return 0.0f;
     }
 
+    float getAudioPreviewLength(const ChartData &chartData)
+    {
+        auto it = chartData.metadata.find("previewLength");
+        if (it != chartData.metadata.end() && !it->second.empty())
+        {
+            std::string lengthStr = it->second;
+            try
+            {
+                float length = std::stof(lengthStr);
+                if (length > 0.0f)
+                {
+                    return length;
+                }
+                else
+                {
+                    GAME_LOG_ERROR("Invalid preview length in metadata: " + lengthStr);
+                }
+            }
+            catch (const std::invalid_argument &e)
+            {
+                GAME_LOG_ERROR("Invalid preview length format: " + std::string(e.what()));
+            }
+            catch (const std::out_of_range &e)
+            {
+                GAME_LOG_ERROR("Preview length out of range: " + std::string(e.what()));
+            }
+        }
+
+        return -1.0f; 
+    }
+
     std::string getAudioPath(const ChartData &chartData)
     {
         auto it = chartData.metadata.find("audio");
@@ -166,41 +202,48 @@ namespace Utils
     std::vector<std::string> getChartList()
     {
         const std::string &directoryPath = "assets/songs/";
-        std::vector<std::string> chartFiles;
+        std::vector<std::string> packDirectories;
 
         if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
         {
-            return chartFiles;
+            return packDirectories;
         }
 
         for (const auto &entry : std::filesystem::directory_iterator(directoryPath))
         {
             if (entry.is_directory())
             {
-                chartFiles.push_back(entry.path().string());
+                packDirectories.push_back(entry.path().string());
             }
         }
-        return chartFiles;
+        return packDirectories;
     }
-
-    std::string getChartFile(const std::string &chartDirectory)
+    
+    std::vector<std::string> getChartFiles(const std::string &chartDirectory)
     {
+        std::vector<std::string> chartFiles;
         for (const auto &entry : std::filesystem::directory_iterator(chartDirectory))
         {
             if (entry.is_regular_file())
             {
                 std::string filePath = entry.path().string();
+                if (Utils::hasEnding(filePath, ".vsc"))
+                {
+                    chartFiles.insert(chartFiles.begin(), filePath);
+                    continue;
+                }
+
                 for (const auto &ext : supportedChartExtensions)
                 {
                     if (hasEnding(filePath, ext))
                     {
-                        return filePath;
+                        chartFiles.push_back(filePath);
+                        break; 
                     }
                 }
             }
         }
-
-        return "";
+        return chartFiles;
     }
 
     bool fileExists(const std::string &path)

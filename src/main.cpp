@@ -4,17 +4,17 @@
 
 #include <iostream>
 
-#include <utils/AudioManager.h>
+#include <system/AudioManager.h>
 #include <utils/SettingsManager.h>
-#include <utils/Variables.h>
+#include <system/Variables.h>
 
 #include <BaseState.h>
 #include <states/SongSelectState.h>
 #include <states/PlayState.h>
 #include <states/ResultsState.h>
-#include <objects/FPSCounter.h>
+#include <objects/debug/FPSCounter.h>
 
-#include <utils/OsuUtils.h>
+#include <utils/rhythm/OsuUtils.h>
 
 BaseState *state = NULL;
 void* statePayload = nullptr;
@@ -112,10 +112,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     char *title = (char *)malloc(256);
     snprintf(title, 256, "%s v%s", GAME_NAME, GAME_VERSION);
 
-    WINDOW_WIDTH = settingsManager->getSetting<int>("windowWidth", 1600);
-    WINDOW_HEIGHT = settingsManager->getSetting<int>("windowHeight", 900);
+    WINDOW_WIDTH = settingsManager->getSetting<int>("GENERAL.windowWidth", 1600);
+    WINDOW_HEIGHT = settingsManager->getSetting<int>("GENERAL.windowHeight", 900);
 
-    FRAMERATE_CAP = settingsManager->getSetting<int>("fpsCap", 999);
+    FRAMERATE_CAP = settingsManager->getSetting<int>("GENERAL.fpsCap", 999);
     TARGET_TICK_DURATION = SDL_GetPerformanceFrequency() / FRAMERATE_CAP;
 
     SDL_Window *window = SDL_CreateWindow(title, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE | SDL_WINDOW_TRANSPARENT);
@@ -131,8 +131,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     app->window = window;
     app->renderer = SDL_CreateRenderer(window, NULL);
 
-    bool showFps = settingsManager->getSetting<bool>("showFps", true);
-    bool showDebug = settingsManager->getSetting<bool>("showDebug", false);
+    bool showFps = settingsManager->getSetting<bool>("GENERAL.showFps", true);
+    bool showDebug = settingsManager->getSetting<bool>("GENERAL.showDebug", false);
 
     if (showFps) {
         app->fpsCounter = new FPSCounter(app->renderer, MAIN_FONT_PATH, 16, 7.0f);
@@ -158,14 +158,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     OsuUtils* osuUtils = new OsuUtils();
     osuUtils->parseOsuDatabase();
 
-    const std::string keyNames[4] = {"keyLeft", "keyDown", "keyUp", "keyRight"};
-    const std::string defaults[4] = {"A", "S", "K", "L"};
-    
-    for (int i = 0; i < 4; i++) {
-        std::string key = app->settingsManager->getSetting(keyNames[i], defaults[i]);
-        app->keybinds[i] = SDL_GetKeyFromName(key.c_str());
-    }
-
     if (!app->renderer)
     {
         GAME_LOG_ERROR("Failed to create SDL renderer: " + std::string(SDL_GetError()));
@@ -188,6 +180,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_Fail();
     }
 
+    GAME_LOG_DEBUG("Initialization successful.");
     return SDL_APP_CONTINUE;
 }
 
@@ -378,7 +371,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
 
             Uint64 finalWaitEnd = frameStartTime + TARGET_TICK_DURATION;
-            while (SDL_GetPerformanceCounter() < finalWaitEnd) { } 
+            while (SDL_GetPerformanceCounter() < finalWaitEnd) {
+                SDL_Delay(0); 
+            } 
         }
     }
 

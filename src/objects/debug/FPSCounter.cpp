@@ -1,5 +1,5 @@
-#include "objects/FPSCounter.h"
-#include "utils/Variables.h"
+#include "objects/debug/FPSCounter.h"
+#include "system/Variables.h"
 #include "utils/Utils.h"
 #include <iomanip>
 #include <sstream>

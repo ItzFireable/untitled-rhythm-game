@@ -1,0 +1,6 @@
+if(NOT EXISTS "${_TARGET}")
+    message(STATUS "Assets target directory does not exist. Copying assets from: ${_SOURCE}")
+    file(COPY "${_SOURCE}/" DESTINATION "${_TARGET}")
+else()
+    message(STATUS "Assets already exist in target directory: ${_TARGET}. Skipping copy.")
+endif()

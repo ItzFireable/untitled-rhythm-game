@@ -39,10 +39,11 @@ TextAlignment convertHudAlignXToTextAlignment(HudAlignmentX hudAlign) {
     }
 }
 
-GameplayHud::GameplayHud(AppContext* appContext, SkinUtils* skinUtils)
+GameplayHud::GameplayHud(AppContext* appContext, SkinUtils* skinUtils, JudgementSystem* judgementSystem)
     : appContext_(appContext),
       renderer_(appContext->renderer),
-      skinUtils_(skinUtils)
+      skinUtils_(skinUtils),
+      judgementSystem_(judgementSystem)
 {
     if (appContext_) {
         screenWidth_ = appContext_->renderWidth;
@@ -50,14 +51,15 @@ GameplayHud::GameplayHud(AppContext* appContext, SkinUtils* skinUtils)
     }
 
     std::string fontName = skinUtils_->getFontName();
-    float fontSize = skinUtils_->getFontSize();
+    float fontSize = skinUtils_->getSkinProperty<float>("fontSize", 24.0f);
 
-    if (skinUtils_->getShowJudgementCounter()) {
+    if (skinUtils_->getSkinProperty<bool>("showJudgementCounter", true)) {
+        GAME_LOG_DEBUG("GameplayHud: Initializing JudgementCounter");
         HudAlignmentX alignX = skinUtils_->getJudgementCounterXAlignment();
         HudAlignmentY alignY = skinUtils_->getJudgementCounterYAlignment();
 
-        float posX = skinUtils_->getJudgementCounterXOffset();
-        float posY = skinUtils_->getJudgementCounterYOffset();
+        float posX = skinUtils_->getSkinProperty<float>("judgementCounterX", 16.0f);
+        float posY = skinUtils_->getSkinProperty<float>("judgementCounterY", 0.0f);
 
         if (alignX == HUD_ALIGN_CENTER) {
             posX += screenWidth_ / 2.0f;
@@ -80,12 +82,13 @@ GameplayHud::GameplayHud(AppContext* appContext, SkinUtils* skinUtils)
         judgementInfo_->setYAlignment(convertHudAlignYToTextAlignY(alignY));
     }
 
-    if (skinUtils_->getShowAccuracyDisplay()) {
+    if (skinUtils_->getSkinProperty<bool>("showAccuracyDisplay", true)) {
+        GAME_LOG_DEBUG("GameplayHud: Initializing AccuracyDisplay");
         HudAlignmentX alignX = skinUtils_->getAccuracyXAlignment();
         HudAlignmentY alignY = skinUtils_->getAccuracyYAlignment();
 
-        float posX = skinUtils_->getAccuracyXOffset();
-        float posY = skinUtils_->getAccuracyYOffset();
+        float posX = skinUtils_->getSkinProperty<float>("accuracyX", 0.0f);
+        float posY = skinUtils_->getSkinProperty<float>("accuracyY", 16.0f);
 
         if (alignX == HUD_ALIGN_CENTER) {
             posX += screenWidth_ / 2.0f;
@@ -106,6 +109,12 @@ GameplayHud::GameplayHud(AppContext* appContext, SkinUtils* skinUtils)
         accuracyInfo_->setXAlignment(convertHudAlignXToTextAlignX(alignX));
         accuracyInfo_->setYAlignment(convertHudAlignYToTextAlignY(alignY));
     }
+
+    bool showHitErrorBar = skinUtils_->getSkinProperty<bool>("showHitErrorBar", true);
+    if (showHitErrorBar) {
+        GAME_LOG_DEBUG("GameplayHud: Initializing HitErrorBar");
+        hitErrorBar_ = new HitErrorBar(appContext_, skinUtils_, judgementSystem_);
+    }
 }
 
 void GameplayHud::update(float deltaTime)
@@ -117,7 +126,7 @@ void GameplayHud::update(float deltaTime)
 
     if (judgementSystem_)
     {
-        if (skinUtils_->getShowAccuracyDisplay() && accuracyInfo_)
+        if (skinUtils_->getSkinProperty<bool>("showAccuracyDisplay", true) && accuracyInfo_)
         {
             std::stringstream acc;
             acc.precision(2);
@@ -127,22 +136,47 @@ void GameplayHud::update(float deltaTime)
             accuracyInfo_->setText(acc.str());
         }
 
-        if (skinUtils_->getShowJudgementCounter() && judgementInfo_)
+        if (skinUtils_->getSkinProperty<bool>("showJudgementCounter", true) && judgementInfo_)
         {
             std::stringstream js;
             js.precision(0);
             js << std::fixed;
 
-            for (Judgement j : judgementSystem_->getAllJudgements()) {
-                js << judgementSystem_->judgementToString(j) << ": " << judgementSystem_->getJudgementCount(j) << "\n";
+            for (Judgement j : JudgementSystem::getAllJudgements()) {
+                js << JudgementSystem::judgementToString(j) << ": " << judgementSystem_->getJudgementCount(j) << "\n";
             }
             judgementInfo_->setText(js.str());
         }
+    }
+
+    if (hitErrorBar_)
+    {
+        hitErrorBar_->update(deltaTime);
     }
 }
 
 void GameplayHud::render()
 {
-    if (judgementInfo_ && skinUtils_->getShowJudgementCounter()){ judgementInfo_->render(); }
-    if (accuracyInfo_ && skinUtils_->getShowAccuracyDisplay()){ accuracyInfo_->render(); }
+    if (judgementInfo_ && skinUtils_->getSkinProperty<bool>("showJudgementCounter", true)){ judgementInfo_->render(); }
+    if (accuracyInfo_ && skinUtils_->getSkinProperty<bool>("showAccuracyDisplay", true)){ accuracyInfo_->render(); }
+    if (hitErrorBar_ && skinUtils_->getSkinProperty<bool>("showHitErrorBar", true)){ hitErrorBar_->render(); }
+}
+
+void GameplayHud::destroy()
+{
+    if (hitErrorBar_) {
+        hitErrorBar_->destroy();
+        delete hitErrorBar_;
+        hitErrorBar_ = nullptr;
+    }
+
+    if (judgementInfo_) {
+        delete judgementInfo_;
+        judgementInfo_ = nullptr;
+    }
+
+    if (accuracyInfo_) {
+        delete accuracyInfo_;
+        accuracyInfo_ = nullptr;
+    }
 }

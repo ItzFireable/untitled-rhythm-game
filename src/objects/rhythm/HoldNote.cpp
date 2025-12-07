@@ -1,4 +1,4 @@
-#include <rhythm/HoldNote.h>
+#include <objects/rhythm/HoldNote.h>
 #include <rhythm/Playfield.h>
 
 SDL_Texture *HoldNote::sharedTexture_ = nullptr;
@@ -126,8 +126,10 @@ void HoldNote::update(float deltaTime)
     float playbackRateCompensation = (currentTime < 0.0f) ? 1.0f : conductor->getPlaybackRate();
 
     float speed = (playfield->getScrollSpeed() * getSpeedModifier()) / playbackRateCompensation;
-    float speedMult = playfield->getSkinUtils()->getPlayfieldWidth() / 400.0f;
+    float speedMult = playfield->getPlayfieldWidth() / 400.0f;
+    
     speed *= speedMult;
+    speed /= (playfield->getKeyCount() / 4.0f);
 
     float strumLinePos = playfield->getStrumLinePos() + playfield->getStrumLineOffset();
     float newEndY = strumLinePos - (timeDiff * speed);
@@ -172,7 +174,7 @@ void HoldNote::render(SDL_Renderer *renderer)
     }
 
     float finalEndY = getEndY();
-    float holdCut = skinUtils->getHoldCutAmount();
+    float holdCut = skinUtils->getSkinProperty<float>("holdCut", 0.0f);
 
     finalEndY += holdCut;
 

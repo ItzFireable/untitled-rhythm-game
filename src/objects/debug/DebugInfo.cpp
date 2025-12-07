@@ -1,5 +1,5 @@
-#include "objects/DebugInfo.h"
-#include "utils/Variables.h"
+#include "objects/debug/DebugInfo.h"
+#include "system/Variables.h"
 #include "utils/Utils.h"
 #include "BaseState.h"
 #include <iomanip>

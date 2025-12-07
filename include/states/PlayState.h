@@ -1,18 +1,20 @@
 #ifndef PLAY_STATE_H
 #define PLAY_STATE_H
 
-#include <BaseState.h>
-#include <rhythm/ChartManager.h>
-#include <rhythm/Conductor.h>
-#include <rhythm/Playfield.h>
-#include <utils/Utils.h>
-#include <string>
 #include <memory>
+#include <string>
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
-#include <rhythm/JudgementSystem.h>
-#include <objects/ConductorInfo.h>
+
+#include <BaseState.h>
+#include <utils/Utils.h>
+#include <rhythm/Conductor.h>
+#include <rhythm/Playfield.h>
 #include <rhythm/GameplayHud.h>
+#include <utils/SettingsManager.h>
+#include <rhythm/JudgementSystem.h>
+#include <utils/rhythm/ChartUtils.h>
+#include <objects/debug/ConductorInfo.h>
 
 class PlayState : public BaseState
 {
@@ -23,7 +25,6 @@ public:
     void render() override;
     void destroy() override;
 
-    std::string getChartBackgroundName(ChartData chartData);
     std::string getStateName() const override {
         return "PlayState";
     }
@@ -31,6 +32,9 @@ private:
     bool isReady_ = false;
     float readyTimer_ = 0.0f;
     const float START_DELAY = 2.0f;
+
+    PlayStateData* currentStateData_ = nullptr;
+    SongSelectData* previousStateData_ = nullptr;
 
     std::unique_ptr<Conductor> conductor_;
     std::unique_ptr<SkinUtils> skinUtils_;

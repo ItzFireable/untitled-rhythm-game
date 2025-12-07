@@ -1,4 +1,4 @@
-#include "utils/SkinUtils.h"
+#include "utils/rhythm/SkinUtils.h"
 
 bool SkinUtils::isAllowedHeader(const std::string& header) {
     return std::find(allowedSkinConfigHeaders.begin(), allowedSkinConfigHeaders.end(), header) != allowedSkinConfigHeaders.end();
@@ -13,14 +13,21 @@ std::string SkinUtils::getSkinProperty<std::string>(const std::string& propertyN
     return defaultValue;
 }
 
+template<>
+bool SkinUtils::getSkinProperty<bool>(const std::string& propertyName, const bool& defaultValue) const {
+    auto it = skinConfig_.find(propertyName);
+    if (it != skinConfig_.end()) {
+        std::string val = it->second;
+        std::transform(val.begin(), val.end(), val.begin(), ::tolower);
+        return (val == "true");
+    }
+    return defaultValue;
+}
+
 std::string SkinUtils::getFontName() const
 {
     std::string fontName = SkinUtils::getSkinProperty<std::string>("fontName", "GoogleSansCode-Bold");
     return "assets/fonts/" + fontName + ".ttf";
-}
-float SkinUtils::getFontSize() const
-{
-    return SkinUtils::getSkinProperty<float>("fontSize", 24.0f);
 }
 
 HudAlignmentX SkinUtils::getHudAlignmentX(const std::string &propertyName, HudAlignmentX defaultValue) const
@@ -47,30 +54,6 @@ HudAlignmentY SkinUtils::getHudAlignmentY(const std::string &propertyName, HudAl
     return defaultValue;
 }
 
-bool SkinUtils::getShowJudgementCounter() const
-{
-    return SkinUtils::getSkinProperty<std::string>("showJudgementCounter", "true") == "true";
-}
-bool SkinUtils::getShowAccuracyDisplay() const
-{
-    return SkinUtils::getSkinProperty<std::string>("showAccuracyDisplay", "true") == "true";
-}
-HudAlignmentX SkinUtils::getAccuracyXAlignment() const
-{
-    return SkinUtils::getHudAlignmentX("accuracyAlignX", HUD_ALIGN_CENTER);
-}
-HudAlignmentY SkinUtils::getAccuracyYAlignment() const
-{
-    return SkinUtils::getHudAlignmentY("accuracyAlignY", HUD_ALIGN_TOP);
-}
-float SkinUtils::getAccuracyXOffset() const
-{
-    return SkinUtils::getSkinProperty<float>("accuracyX", 0.0f);
-}
-float SkinUtils::getAccuracyYOffset() const
-{
-    return SkinUtils::getSkinProperty<float>("accuracyY", 16.0f);
-}
 HudAlignmentX SkinUtils::getJudgementCounterXAlignment() const
 {
     return SkinUtils::getHudAlignmentX("judgementCounterAlignX", HUD_ALIGN_LEFT);
@@ -79,41 +62,14 @@ HudAlignmentY SkinUtils::getJudgementCounterYAlignment() const
 {
     return SkinUtils::getHudAlignmentY("judgementCounterAlignY", HUD_ALIGN_MIDDLE);
 }
-float SkinUtils::getJudgementCounterXOffset() const
+
+HudAlignmentX SkinUtils::getAccuracyXAlignment() const
 {
-    return SkinUtils::getSkinProperty<float>("judgementCounterX", 16.0f);
+    return SkinUtils::getHudAlignmentX("accuracyAlignX", HUD_ALIGN_CENTER);
 }
-float SkinUtils::getJudgementCounterYOffset() const
+HudAlignmentY SkinUtils::getAccuracyYAlignment() const
 {
-    return SkinUtils::getSkinProperty<float>("judgementCounterY", 0.0f);
-}
-float SkinUtils::getHoldCutAmount() const
-{
-    return SkinUtils::getSkinProperty<float>("holdCut", 20.0f);
-}
-float SkinUtils::getPlayfieldWidth() const
-{
-    return SkinUtils::getSkinProperty<float>("playfieldWidth", 550.0f);
-}
-float SkinUtils::getPadding() const
-{
-    return SkinUtils::getSkinProperty<float>("playfieldPadding", 16.0f);
-}
-float SkinUtils::getScrollSpeed() const
-{
-    return SkinUtils::getSkinProperty<float>("scrollSpeed", 1650.0f);
-}
-float SkinUtils::getStrumlineOffset() const
-{
-    return SkinUtils::getSkinProperty<float>("strumlineOffset", 0.0f);
-}
-float SkinUtils::getStrumlineGap() const
-{
-    return SkinUtils::getSkinProperty<float>("strumlineGap", 0.0f);
-}
-float SkinUtils::getJudgementPopupOffset() const
-{
-    return SkinUtils::getSkinProperty<float>("judgementPopupOffset", 0.0f);
+    return SkinUtils::getHudAlignmentY("accuracyAlignY", HUD_ALIGN_TOP);
 }
 
 SkinConfigMap SkinUtils::getDefaultSkinConfig()
@@ -191,4 +147,42 @@ void SkinUtils::loadSkin(const std::string& skinName)
             skinConfig_[key] = value;
         }
     }
+}
+
+void SkinUtils::saveSkin()
+{
+    std::string configPath = "assets/skins/" + skinName_ + "/skin.vsc";
+    std::stringstream ss;
+
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> sections;
+
+    for (const auto& header : allowedSkinConfigHeaders) {
+        sections[header] = {};
+    }
+
+    for (const auto& [key, value] : skinConfig_) {
+        for (const auto& header : allowedSkinConfigHeaders) {
+            if (key.find(header) == 0) {
+                sections[header].emplace_back(key, value);
+                break;
+            }
+        }
+    }
+
+    for (const auto& header : allowedSkinConfigHeaders) {
+        ss << "[" << header << "]\n";
+        for (const auto& [key, value] : sections[header]) {
+            ss << key << " = " << value << "\n";
+        }
+        ss << "\n";
+    }
+
+    std::ofstream configFile(configPath);
+    if (!configFile.is_open()) {
+        GAME_LOG_ERROR("SettingsManager: Could not open settings.vsc for writing.");
+        return;
+    }
+
+    configFile << ss.str();
+    configFile.close();
 }

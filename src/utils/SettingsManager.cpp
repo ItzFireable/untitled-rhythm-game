@@ -1,5 +1,10 @@
 #include "utils/SettingsManager.h"
 
+std::string SettingsManager::parseSectionHeader(const std::string& line) const
+{
+    return line.substr(1, line.length() - 2);
+}
+
 void SettingsManager::loadSettings()
 {
     std::string configData = Utils::readFile("settings.vsc");
@@ -9,19 +14,22 @@ void SettingsManager::loadSettings()
     {
         GAME_LOG_WARN("SettingsManager: Could not load settings config. Using default settings.");
         settingConfig_ = defaultConfig;
-
         saveSettings();
         return;
     }
 
     std::stringstream ss(configData);
     std::string line;
+    std::string currentSection = "";
     
     while (std::getline(ss, line)) {
         line = Utils::trim(line);
+        
         if (line.empty() || line.rfind("//", 0) == 0) continue;
-
-        if (line.front() == '[' && line.back() == ']') continue;
+        if (line.front() == '[' && line.back() == ']') {
+            currentSection = parseSectionHeader(line);
+            continue;
+        }
 
         size_t eqPos = line.find('=');
         if (eqPos != std::string::npos) {
@@ -30,7 +38,9 @@ void SettingsManager::loadSettings()
 
             key = Utils::trim(key);
             value = Utils::trim(value);
-            settingConfig_[key] = value;
+            
+            std::string fullKey = currentSection.empty() ? key : currentSection + "." + key;
+            settingConfig_[fullKey] = value;
         }
     }
 
@@ -49,8 +59,29 @@ void SettingsManager::saveSettings() const
         return;
     }
 
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> sections;
+    
     for (const auto& [key, value] : settingConfig_) {
-        configFile << key << " = " << value << "\n";
+        size_t dotPos = key.find('.');
+        if (dotPos != std::string::npos) {
+            std::string section = key.substr(0, dotPos);
+            std::string settingName = key.substr(dotPos + 1);
+            sections[section].push_back({settingName, value});
+        } else {
+            sections[""].push_back({key, value});
+        }
+    }
+
+    for (const auto& [section, settings] : sections) {
+        if (!section.empty()) {
+            configFile << "[" << section << "]\n";
+        }
+        
+        for (const auto& [key, value] : settings) {
+            configFile << key << " = " << value << "\n";
+        }
+        
+        configFile << "\n";
     }
 
     configFile.close();

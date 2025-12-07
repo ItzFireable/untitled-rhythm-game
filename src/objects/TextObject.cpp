@@ -1,5 +1,5 @@
 #include "objects/TextObject.h"
-#include "utils/Logger.h"
+#include "system/Logger.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_render.h>
 

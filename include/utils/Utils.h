@@ -4,10 +4,11 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <functional>
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_render.h>
-#include "rhythm/ChartManager.h"
+#include "utils/rhythm/ChartUtils.h"
 
 namespace Utils {
     void getWindowSize(SDL_Window *window, int &width, int &height);
@@ -20,12 +21,13 @@ namespace Utils {
     std::string formatMemorySize(size_t bytes);
     std::string toString(int value);
 
-    std::vector<std::string> getChartList();
-    std::string getChartFile(const std::string& chartDirectory);
+    std::vector<std::string> getChartList(); 
+    std::vector<std::string> getChartFiles(const std::string& chartDirectory);
     static bool fileExists(const std::string& path);
     std::string getChartAssetPath(const ChartData &chartData, const std::string &assetName);
 
     float getAudioStartPos(const ChartData &chartData);
+    float getAudioPreviewLength(const ChartData &chartData);
     std::string getAudioPath(const ChartData &chartData);
 
     double pNorm(const std::vector<double>& values, const std::vector<double>& weights, double P);

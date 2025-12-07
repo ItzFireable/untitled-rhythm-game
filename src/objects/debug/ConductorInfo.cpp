@@ -1,4 +1,4 @@
-#include "objects/ConductorInfo.h"
+#include "objects/debug/ConductorInfo.h"
 #include "utils/Utils.h"
 #include <iomanip>
 #include <sstream>
@@ -29,12 +29,25 @@ void ConductorInfo::update()
     if (!conductor)
         return;
 
-    float songPosition = conductor_->getSongPosition() / conductor_->getPlaybackRate();
-    float endTime = conductor_->getSongDuration() / conductor_->getPlaybackRate();
+    bool isInitialized = conductor_->isInitialized();
+    bool isAudioLoading = conductor_->isLoadingAudio();
+    bool isPlaying = conductor_->isPlaying();
 
-    float songBeats = conductor_->getCurrentBeat();
-    float songStep = conductor_->getCurrentStep();
-    float songBPM = conductor_->getCurrentBPM();
+    float songPosition = 0.0f;
+    float endTime = 0.0f;
+
+    float songBeats = 0.0f;
+    float songStep = 0.0f;
+    float songBPM = 0.0f;
+
+    if (isInitialized && !isAudioLoading) { 
+        songPosition = conductor_->getSongPosition() / conductor_->getPlaybackRate();
+        endTime = conductor_->getSongDuration() / conductor_->getPlaybackRate();
+
+        songBeats = conductor_->getCurrentBeat();
+        songStep = conductor_->getCurrentStep();
+        songBPM = conductor_->getCurrentBPM();
+    }
 
     std::stringstream ss;
     ss.precision(2);
@@ -44,6 +57,8 @@ void ConductorInfo::update()
        << "BEAT: " << songBeats << "\n"
        << "STEP: " << songStep << "\n"
        << "BPM: " << songBPM;
+    ss << "\nSTATUS: " << (isPlaying ? "Playing" : "Paused");
+    ss << "\nAUDIO LOAD: " << (isInitialized ? (isAudioLoading ? "Loading..." : "Loaded") : "Not Initialized");
 
     textObject_->setText(ss.str());
 }

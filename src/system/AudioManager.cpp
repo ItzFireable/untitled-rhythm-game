@@ -1,7 +1,7 @@
 
 
-#include "utils/AudioManager.h"
-#include "utils/Logger.h"
+#include "system/AudioManager.h"
+#include "system/Logger.h"
 #include <stdexcept>
 #include <fstream>
 #include <cmath>
@@ -735,6 +735,7 @@ bool AudioManager::loadMusicStream(const std::string &filePath, float startTime)
 
     currentStream_.seekOffsetFrames = startFrameOffset;
     currentStream_.samplesRead = startFrameOffset;
+    currentStream_.totalSamplesProcessed = startFrameOffset;
 
     alGenSources(1, &currentStream_.sourceID);
     if (currentStream_.sourceID == 0) {
@@ -952,7 +953,7 @@ bool AudioManager::switchMusicStream(const std::string &filePath, float crossfad
             nextStream_.streamHandle = mp3;
             channels = mp3->channels;
             sampleRate = mp3->sampleRate;
-            nextStream_.totalSamples = 0;
+            nextStream_.totalSamples = (int)drmp3_get_pcm_frame_count(mp3);
             success = true;
         }
         else
@@ -1045,6 +1046,7 @@ bool AudioManager::switchMusicStream(const std::string &filePath, float crossfad
 
     nextStream_.seekOffsetFrames = startFrameOffset;
     nextStream_.samplesRead = startFrameOffset + framesSkipped;
+    nextStream_.totalSamplesProcessed = startFrameOffset + framesSkipped;
 
     alGenSources(1, &nextStream_.sourceID);
 

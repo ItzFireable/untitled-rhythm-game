@@ -1,7 +1,8 @@
-#include <rhythm/Note.h>
+#include <objects/rhythm/Note.h>
 #include <rhythm/Playfield.h>
 
 SDL_Texture* Note::sharedTexture_ = nullptr;
+SDL_Texture* Note::mineTexture_ = nullptr;
 
 void Note::setAlphaMod(Uint8 alpha) {
     if (sharedTexture_) {
@@ -9,7 +10,7 @@ void Note::setAlphaMod(Uint8 alpha) {
     }
 }
 
-void Note::LoadSharedTexture(SDL_Renderer* renderer, Playfield* pf) {
+void Note::LoadSharedTextures(SDL_Renderer* renderer, Playfield* pf) {
     SkinUtils* skinUtils = pf->getSkinUtils();
 
     if (sharedTexture_ == nullptr) {
@@ -20,12 +21,29 @@ void Note::LoadSharedTexture(SDL_Renderer* renderer, Playfield* pf) {
             GAME_LOG_ERROR("Failed to load shared note texture from " + filePath);
         }
     }
+
+    if (mineTexture_ == nullptr) {
+        std::string mineFilePath = skinUtils->getFilePathForSkinElement("notes/mine");
+
+        mineTexture_ = IMG_LoadTexture(renderer, mineFilePath.c_str());
+        if (!mineTexture_) {
+            GAME_LOG_ERROR("Failed to load mine note texture from " + mineFilePath);
+            if (sharedTexture_) {
+                mineTexture_ = sharedTexture_;
+            }
+        }
+    }
 }
 
 void Note::DestroySharedTexture() {
     if (sharedTexture_ != nullptr) {
         SDL_DestroyTexture(sharedTexture_);
         sharedTexture_ = nullptr;
+    }
+
+    if (mineTexture_ != nullptr) {
+        SDL_DestroyTexture(mineTexture_);
+        mineTexture_ = nullptr;
     }
 }
 
@@ -79,8 +97,10 @@ void Note::update(float deltaTime) {
     float playbackRateCompensation = (currentTime < 0.0f) ? 1.0f : conductor->getPlaybackRate();
 
     float speed = (playfield->getScrollSpeed() * getSpeedModifier()) / playbackRateCompensation;
-    float speedMult = playfield->getSkinUtils()->getPlayfieldWidth() / 400.0f;
+    float speedMult = playfield->getPlayfieldWidth() / 400.0f;
+    
     speed *= speedMult;
+    speed /= (playfield->getKeyCount() / 4.0f);
 
     float noteX_, noteY_, noteWidth_, noteHeight_;
     float playfieldX_, playfieldY_;

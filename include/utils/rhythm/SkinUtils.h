@@ -6,7 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <utils/Utils.h>
-#include <utils/Logger.h>
+#include <system/Logger.h>
 #include <SDL3/SDL_iostream.h>
 
 using SkinConfigMap = std::map<std::string, std::string>;
@@ -37,8 +37,10 @@ public:
         "GAMEPLAY",
         "NOTES",
         "HUD",
+        "HITERROR",
         "JUDGEMENTS",
-        "ACCURACY"};
+        "ACCURACY"
+    };
 
     bool isAllowedHeader(const std::string &header);
 
@@ -63,36 +65,18 @@ public:
     }
 
     std::string getFontName() const;
-    float getFontSize() const;
 
     HudAlignmentX getHudAlignmentX(const std::string &propertyName, HudAlignmentX defaultValue) const;
     HudAlignmentY getHudAlignmentY(const std::string &propertyName, HudAlignmentY defaultValue) const;
 
-    bool getShowJudgementCounter() const;
-    bool getShowAccuracyDisplay() const;
-
     HudAlignmentX getAccuracyXAlignment() const;
     HudAlignmentY getAccuracyYAlignment() const;
-    float getAccuracyXOffset() const;
-    float getAccuracyYOffset() const;
 
     HudAlignmentX getJudgementCounterXAlignment() const;
     HudAlignmentY getJudgementCounterYAlignment() const;
-    float getJudgementCounterXOffset() const;
-    float getJudgementCounterYOffset() const;
-
-    float getHoldCutAmount() const;
-    float getPlayfieldWidth() const;
-
-    float getPadding() const;
-    float getScrollSpeed() const;
-
-    float getStrumlineOffset() const;
-    float getStrumlineGap() const;
-
-    float getJudgementPopupOffset() const;
 
     void loadSkin(const std::string &skinName);
+    void saveSkin();
     const std::string &getSkinName() const { return skinName_; }
 
     std::string getFilePathForSkinElement(const std::string &elementName) const;
@@ -104,5 +88,8 @@ private:
 
 template <>
 std::string SkinUtils::getSkinProperty<std::string>(const std::string &propertyName, const std::string &defaultValue) const;
+
+template <>
+bool SkinUtils::getSkinProperty<bool>(const std::string &propertyName, const bool &defaultValue) const;
 
 #endif
