@@ -3,8 +3,6 @@
 Playfield::Playfield() {}
 Playfield::~Playfield()
 {
-    Note::DestroySharedTexture();
-
     for (auto const &[key, val] : judgementSpriteCache_)
     {
         if (val)
@@ -129,22 +127,29 @@ void Playfield::init(AppContext *appContext, int keyCount, float height, SkinUti
     keySize_ = keySpace / static_cast<float>(keyCount_);
     strumLinePos_ = positionY_ + playfieldHeight_ - keySize_;
 
+    Strum tempStrum(0, 0, 0, 0);
+    tempStrum.loadTextures(renderer_, this);
+
     for (int i = 0; i < keyCount_; ++i)
     {
         float strumX = getStrumXPosition(i, keyCount_, playfieldWidth_);
         Strum *strum = new Strum(strumX, strumLinePos_ + strumLineOffset_, keySize_, keySize_, i);
-
         strum->setPlayfield(this);
-        strum->loadTexture(renderer_);
-
         strums_.push_back(strum);
     }
+
+    auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    randomGenerator_.seed(seed);
+    offsetDistribution_ = std::uniform_real_distribution<float>(-0.002f, 0.002f);
 }
 
 void Playfield::loadNotes(ChartData *chartData)
 {
-    Note::LoadSharedTextures(renderer_, this);
-    HoldNote::LoadSharedTextures(renderer_, this);
+    Note tempNote(0, 0, 0, 0);
+    tempNote.loadTextures(renderer_, this);
+
+    HoldNote tempHoldNote(0, 0, 0, 0);
+    tempHoldNote.loadTextures(renderer_, this);
 
     std::map<int, HoldNote*> openHoldNotes;
 
@@ -385,54 +390,49 @@ void Playfield::update(float deltaTime)
     float maxMissWindow = judgementSystem_->getMaxMissWindowMs() / 1000.0f;
 
     if (useAutoplay_) {
+        auto getRandomOffset = [&]() -> float {
+            return offsetDistribution_(randomGenerator_);
+        };
+
+        for (auto it = autoplayReleaseTimes_.begin(); it != autoplayReleaseTimes_.end(); ) {
+            int column = it->first;
+            float releaseTime = it->second;
+
+            if (currentTime >= releaseTime) {
+                handleKeyRelease(column);
+                it = autoplayReleaseTimes_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
         for (size_t i = 0; i < notes_.size(); ++i) {
             Note* note = notes_[i];
             
             if (!note || note->shouldDespawn() || note->hasBeenHit()) continue;
             if (note->getType() == MINE) continue;
-
-            float noteTime = note->getTime() / 1000.0f;
             
-            if (currentTime >= noteTime) {
-                note->markAsHit();
-                
+            float noteTime = note->getTime() / 1000.0f;
+            float pressTime = noteTime + getRandomOffset();
+            int column = note->getColumn();
+            
+            if (currentTime >= pressTime && autoplayReleaseTimes_.find(column) == autoplayReleaseTimes_.end()) 
+            {
+                if (note->getType() == HOLD_START) {
+                    HoldNote* holdNote = dynamic_cast<HoldNote*>(note);
+                    if (holdNote && holdNote->isHolding()) continue;
+                }
+
+                handleKeyPress(column);
                 if (note->getType() == HOLD_START) {
                     HoldNote* holdNote = dynamic_cast<HoldNote*>(note);
                     if (holdNote) {
-                        holdNote->setIsHolding(true);
+                        float endTime = holdNote->getEndTime() / 1000.0f;
+                        autoplayReleaseTimes_[column] = endTime + getRandomOffset();
                     }
                 } else {
-                    note->despawnNote();
+                    autoplayReleaseTimes_[column] = pressTime + getRandomOffset(); 
                 }
-                
-                judgementSystem_->addJudgement(Judgement::Marvelous, 0.0f);
-                if (gameplayHud_ && gameplayHud_->getHitErrorBar()) {
-                    gameplayHud_->getHitErrorBar()->addHitError(Judgement::Marvelous, 0.0f);
-                }
-                spawnJudgementEffect({ Judgement::Marvelous, 0.0f });
-            }
-        }
-        
-        for (size_t i = 0; i < notes_.size(); ++i) {
-            Note* note = notes_[i];
-            
-            if (!note || note->shouldDespawn()) continue;
-            if (note->getType() != HOLD_START) continue;
-            
-            HoldNote* holdNote = dynamic_cast<HoldNote*>(note);
-            if (!holdNote || !holdNote->isHolding()) continue;
-            
-            float endTime = holdNote->getEndTime() / 1000.0f;
-            
-            if (currentTime >= endTime) {
-                holdNote->setIsHolding(false);
-                holdNote->despawnNote();
-                
-                judgementSystem_->addJudgement(Judgement::Marvelous, 0.0f);
-                if (gameplayHud_ && gameplayHud_->getHitErrorBar()) {
-                    gameplayHud_->getHitErrorBar()->addHitError(Judgement::Marvelous, 0.0f);
-                }
-                spawnJudgementEffect({ Judgement::Marvelous, 0.0f });
             }
         }
     }
@@ -501,33 +501,33 @@ void Playfield::update(float deltaTime)
     }
 
     for (int i = notes_.size() - 1; i >= 0; --i)
-{
-    Note* note = notes_[i];
-    if (!note) continue;
-    
-    bool canDelete = false;
+    {
+        Note* note = notes_[i];
+        if (!note) continue;
+        
+        bool canDelete = false;
 
-    if (note->getType() == HOLD_START) {
-        HoldNote* holdNote = dynamic_cast<HoldNote*>(note);
-        
-        if (holdNote && holdNote->isHolding()) {
-            continue;
-        }
-        
-        if (holdNote && holdNote->isFadingOut()) {
-            canDelete = holdNote->shouldDespawn(); 
+        if (note->getType() == HOLD_START) {
+            HoldNote* holdNote = dynamic_cast<HoldNote*>(note);
+            
+            if (holdNote && holdNote->isHolding()) {
+                continue;
+            }
+            
+            if (holdNote && holdNote->isFadingOut()) {
+                canDelete = holdNote->shouldDespawn(); 
+            } else {
+                canDelete = note->shouldDespawn(); 
+            }
         } else {
-            canDelete = note->shouldDespawn(); 
+            canDelete = note->shouldDespawn();
         }
-    } else {
-        canDelete = note->shouldDespawn();
+        
+        if (canDelete) {
+            delete notes_[i];
+            notes_.erase(notes_.begin() + i);
+        }
     }
-    
-    if (canDelete) {
-        delete notes_[i];
-        notes_.erase(notes_.begin() + i);
-    }
-}
 }
 
 void Playfield::render(SDL_Renderer *renderer)
@@ -607,8 +607,14 @@ void Playfield::destroy()
     }
     notes_.clear();
 
-    Note::DestroySharedTexture();
-    HoldNote::DestroySharedTexture();
+    Strum tempStrum(0, 0, 0, 0);
+    tempStrum.destroyTextures();
+
+    Note tempNote(0, 0, 0, 0);
+    tempNote.destroyTextures();
+
+    HoldNote tempHoldNote(0, 0, 0, 0);
+    tempHoldNote.destroyTextures();
 
     for (auto const &[key, val] : judgementSpriteCache_)
     {

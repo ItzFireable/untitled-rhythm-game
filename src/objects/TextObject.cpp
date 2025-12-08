@@ -151,7 +151,7 @@ void TextObject::_updateTexture() {
     std::vector<std::string> lines = splitStringByNewlines(text_);
     
     int lineSkip = TTF_GetFontLineSkip(font_);
-    int totalHeight = lineSkip * lines.size();
+    int totalHeight = (lineSkip * lines.size()) + (textGap_ * (lines.size() - 1));
     int maxWidth = 0;
 
     for (const std::string& line : lines) {

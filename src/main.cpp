@@ -4,17 +4,21 @@
 
 #include <iostream>
 
-#include <system/AudioManager.h>
-#include <utils/SettingsManager.h>
 #include <system/Variables.h>
+#include <system/AudioManager.h>
+#include <utils/rhythm/OsuUtils.h>
+#include <utils/SettingsManager.h>
 
 #include <BaseState.h>
-#include <states/SongSelectState.h>
 #include <states/PlayState.h>
 #include <states/ResultsState.h>
-#include <objects/debug/FPSCounter.h>
+#include <states/SongSelectState.h>
 
-#include <utils/rhythm/OsuUtils.h>
+#include <utils/InfoStackManager.h>
+#include <objects/debug/FPSCounter.h>
+#include <objects/debug/DebugInfo.h>
+#include <objects/debug/ConductorInfo.h>
+
 
 BaseState *state = NULL;
 void* statePayload = nullptr;
@@ -134,22 +138,28 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     bool showFps = settingsManager->getSetting<bool>("GENERAL.showFps", true);
     bool showDebug = settingsManager->getSetting<bool>("GENERAL.showDebug", false);
 
+    app->conductor = new Conductor();
+    app->infoStack = new InfoStackManager();
+
     if (showFps) {
-        app->fpsCounter = new FPSCounter(app->renderer, MAIN_FONT_PATH, 16, 7.0f);
-
-        app->fpsCounter->setAppContext(app);
-        app->fpsCounter->update();
+        FPSCounter* fpsCounter = new FPSCounter(app->renderer, MAIN_FONT_PATH, 16, 8.0f);
+        fpsCounter->setAppContext(app);
+        app->infoStack->addInfo(fpsCounter);
+        app->fpsCounter = fpsCounter;
     }
+
     if (showDebug) {
+        DebugInfo* debugInfo = new DebugInfo(app->renderer, MAIN_FONT_PATH, 16, 8.0f);
+        debugInfo->setAppContext(app);
+        app->infoStack->addInfo(debugInfo);
+        app->debugInfo = debugInfo;
 
-        app->debugInfo = new DebugInfo(app->renderer, MAIN_FONT_PATH, 16, 7.0f);
-        app->debugInfo->setAppContext(app);
-
-        FPSCounter* fpsCounter = app->fpsCounter;
-        if (fpsCounter) {
-            app->debugInfo->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
-        }
-        app->debugInfo->update();
+        ConductorInfo* conductorInfo = new ConductorInfo(app->renderer, MAIN_FONT_PATH, 16, 8.0f);
+        conductorInfo->setAppContext(app);
+        conductorInfo->setConductor(app->conductor);
+        
+        app->infoStack->addInfo(conductorInfo);
+        app->conductorInfo = conductorInfo;
     }
 
     app->switchState = setState;
@@ -279,16 +289,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         Utils::getWindowSize(app->window, WINDOW_WIDTH, WINDOW_HEIGHT);
         AudioManager::getInstance().updateStream();
 
-        if (app->fpsCounter) {
-            app->fpsCounter->update();
+        if (app->conductor) {
+            app->conductor->update(deltaTime);
         }
 
-        if (app->debugInfo) {
-            FPSCounter* fpsCounter = app->fpsCounter;
-            if (fpsCounter) {
-                app->debugInfo->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
-            }
-            app->debugInfo->update();
+        if (app->infoStack) {
+            app->infoStack->updateAll();
         }
 
         SDL_SetRenderTarget(app->renderer, app->renderTarget);
@@ -301,12 +307,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             state->render();
         }
 
-        if (app->fpsCounter) {
-            app->fpsCounter->render(app->renderer);
-        }
-
-        if (app->debugInfo) {
-            app->debugInfo->render(app->renderer);
+        if (app->infoStack) {
+            app->infoStack->renderAll(app->renderer);
         }
 
         if (app->isTransitioning)
@@ -397,10 +399,15 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         app->settingsManager->saveSettings();
         delete app->settingsManager;
 
-        if (app->fpsCounter) {
-            delete app->fpsCounter;
-            app->fpsCounter = nullptr;
+        if (app->infoStack) {
+            delete app->infoStack;
+            app->infoStack = nullptr;
         }
+
+        app->fpsCounter = nullptr;
+        app->debugInfo = nullptr;
+        app->conductorInfo = nullptr;
+
         SDL_DestroyRenderer(app->renderer);
         SDL_DestroyWindow(app->window);
         delete app;

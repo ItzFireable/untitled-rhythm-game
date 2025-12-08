@@ -15,9 +15,9 @@ public:
 
     void update(float deltaTime) override;
     void render(SDL_Renderer *renderer) override;
-
-    static void LoadSharedTextures(SDL_Renderer* renderer, Playfield* pf);
-    static void DestroySharedTexture();
+    
+    void loadTextures(SDL_Renderer* renderer, Playfield* pf) override;
+    void destroyTextures() override;
 
     float getEndTime() const { return endTime_; }
     bool hasEndTime() const { return endTime_ > 0.0f; }
@@ -40,18 +40,19 @@ public:
 
     void setHoldEndHeight(float height) { holdEndHeight_ = height; }
     float getHoldEndHeight() const { return holdEndHeight_; }
+
 private:
     int column_;
-    float endTime_;
+    float endTime_ = -1.0f;
     bool isHolding_ = false;
     bool isFadingOut_ = false;
 
     float endY_ = 0.0f;
     float holdEndHeight_ = -1.0f;
-
-    static SDL_Texture* sharedTexture_;
-    static SDL_Texture* sharedBodyTexture_;
-    static SDL_Texture* sharedEndTexture_;
+    
+    static SDL_Texture* sharedHoldStartTexture_;
+    static SDL_Texture* sharedHoldBodyTexture_;
+    static SDL_Texture* sharedHoldEndTexture_;
 };
 
 #endif

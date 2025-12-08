@@ -124,17 +124,12 @@ void FPSCounter::render(SDL_Renderer* renderer)
     float textH = textObject_->getRenderedHeight();
 
     float padding = 4.0f;
-    float reducedPos = 0.0f;
-
-    if (textObject_->getTextGap() != 0.0f) {
-        reducedPos = textObject_->getTextGap() * (textObject_->getLineCount() + 1);
-    }
 
     SDL_FRect backgroundRect = {
         textX - padding,
-        textY - padding + 2.0f,
-        textW + (2.0f * padding) + 2.0f,
-        textH + (2.0f * padding) + reducedPos
+        textY - padding + (padding / 2.0f),
+        textW + (2.0f * padding),
+        textH + (2.0f * padding) - padding
     };
 
     SDL_Color oldColor;

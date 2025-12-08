@@ -31,9 +31,13 @@ extern Uint64 lastFrameTick;
 extern float currentInputLatencyMs;
 extern Uint64 TARGET_TICK_DURATION;
 
+class InfoStackManager;
 class FPSCounter; 
 class DebugInfo;
+class ConductorInfo;
+
 class BaseState;
+class Conductor;
 class SettingsManager;
 
 using StateSwitcher = void (*)(AppContext*, int, void*);
@@ -43,7 +47,7 @@ struct SongSelectData
     int previousIndex = 0;
     std::string previousPackName;
     std::string previousSongTitle;
-
+    
     float previousRate = 1.0f;
 };
 
@@ -53,7 +57,7 @@ struct PlayStateData
     std::string chartFile;
     ChartData chartData;
     float playbackRate;
-
+    
     SongSelectData* previousStateData = nullptr;
 };
 
@@ -62,7 +66,7 @@ struct ResultsData
     float accuracy = 0.0f;
     std::map<Judgement, int> judgementCounts;
     std::vector <JudgementResult> judgementResults;
-
+    
     PlayStateData* playStateData = nullptr;
 };
 
@@ -72,19 +76,23 @@ struct AppContext
     SDL_Renderer *renderer;
     SDL_Texture *renderTarget;
     SDL_AppResult appQuit = SDL_APP_CONTINUE;
-
+    
     AudioManager& audioManager = AudioManager::getInstance();
     
+    InfoStackManager* infoStack = nullptr;
     DebugInfo* debugInfo = nullptr;
     FPSCounter* fpsCounter = nullptr;
-    SettingsManager* settingsManager = nullptr;
+    ConductorInfo* conductorInfo = nullptr;
 
+    Conductor* conductor = nullptr;
+    SettingsManager* settingsManager = nullptr;
+    
     StateSwitcher switchState = nullptr;
     BaseState *currentState = nullptr;
     
     float renderWidth = 1920.0f;
     float renderHeight = 1080.0f;
-
+    
     bool isTransitioning = false;
     float transitionProgress = 0.0f;
     float transitionDuration = 0.3f;

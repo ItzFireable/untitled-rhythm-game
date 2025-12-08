@@ -15,17 +15,12 @@ public:
 
     void update(float deltaTime) override;
     void render(SDL_Renderer *renderer) override;
-
-    static void LoadSharedTextures(SDL_Renderer* renderer, Playfield* pf);
-    static void DestroySharedTexture();
+    
+    void loadTextures(SDL_Renderer* renderer, Playfield* pf) override;
+    void destroyTextures() override;
 
     void setTime(int t) { time = t; }
-    void setType(NoteType t) { 
-        type = t; 
-        if (type == MINE) {
-            setRenderTexture(mineTexture_, false);
-        }
-    }
+    void setType(NoteType t) { type = t; }
     void setColumn(int column) { column_ = column; }
     void setSpeedModifier(float speed) { speedModifier_ = speed; }
 
@@ -46,8 +41,7 @@ public:
     bool getUpdatePos() const { return updatePos; }
 
     void setAlphaMod(Uint8 alpha);
-    SDL_Texture* getSharedTexture() const { return sharedTexture_; }
-    SDL_Texture* getMineTexture() const { return mineTexture_; }
+
 private:
     float time;
     int column_;
@@ -58,9 +52,9 @@ private:
     bool despawned = false;
     bool hasBeenHitFlag = false;
     float speedModifier_ = 1.0f;
-
-    static SDL_Texture* sharedTexture_;
-    static SDL_Texture* mineTexture_;
+    
+    static SDL_Texture* sharedNoteTexture_;
+    static SDL_Texture* sharedMineTexture_;
 };
 
 #endif

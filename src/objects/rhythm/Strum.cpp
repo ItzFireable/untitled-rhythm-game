@@ -1,8 +1,17 @@
 #include <objects/rhythm/Strum.h>
 #include <rhythm/Playfield.h>
 
+SDL_Texture* Strum::sharedStrumTexture_ = nullptr;
+SDL_Texture* Strum::sharedStrumPressTexture_ = nullptr;
+
 Strum::Strum(float x, float y, float width, float height, int column)
-    : x_(x), y_(y), width_(width), height_(height), strumTexture_(nullptr), column_(column) {}
+    : x_(x), y_(y), width_(width), height_(height), column_(column) {
+    textures_["strum"] = sharedStrumTexture_;
+    ownedTextures_[sharedStrumTexture_] = false;
+    
+    textures_["strumPress"] = sharedStrumPressTexture_;
+    ownedTextures_[sharedStrumPressTexture_] = false;
+}
 
 Strum::~Strum() {
     for (const auto& pair : ownedTextures_) {
@@ -12,44 +21,42 @@ Strum::~Strum() {
     }
 }
 
-void Strum::setRenderTexture(SDL_Texture* texture, bool ownedByStrum) {
-    for (const auto& pair : ownedTextures_) {
-        if (pair.second && pair.first) {
-            SDL_DestroyTexture(pair.first);
-        }
-    }
-    
-    strumTexture_ = texture;
-    ownedTextures_[texture] = ownedByStrum;
-}
-
-void Strum::loadTexture(SDL_Renderer* renderer) {
-    for (const auto& pair : ownedTextures_) {
-        if (pair.second && pair.first) {
-            SDL_DestroyTexture(pair.first);
-        }
-    }
-
-    Playfield* playfield = getPlayfield();
-    if (!playfield) return;
-    
+void Strum::loadTextures(SDL_Renderer* renderer, Playfield* playfield) {
     SkinUtils* skinUtils = playfield->getSkinUtils();
     if (!skinUtils) return;
 
-    std::string filePath = skinUtils->getFilePathForSkinElement("notes/strum");
-    std::string pressedFilePath = skinUtils->getFilePathForSkinElement("notes/strumPress");
-    
-    strumTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
-    ownedTextures_[strumTexture_] = true;
-    if (!strumTexture_) {
-        GAME_LOG_ERROR("Failed to load strum texture from " + filePath);
+    if (sharedStrumTexture_ == nullptr) {
+        std::string filePath = skinUtils->getFilePathForSkinElement("notes/strum");
+        sharedStrumTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
+        if (!sharedStrumTexture_) {
+            GAME_LOG_ERROR("Failed to load shared strum texture from " + filePath);
+        }
     }
 
-    strumPressedTexture_ = IMG_LoadTexture(renderer, pressedFilePath.c_str());
-    ownedTextures_[strumPressedTexture_] = true;
+    if (sharedStrumPressTexture_ == nullptr) {
+        std::string filePath = skinUtils->getFilePathForSkinElement("notes/strumPress");
+        sharedStrumPressTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
+        if (!sharedStrumPressTexture_) {
+            GAME_LOG_ERROR("Failed to load shared strum press texture from " + filePath);
+        }
+    }
+    
+    textures_["strum"] = sharedStrumTexture_;
+    ownedTextures_[sharedStrumTexture_] = false;
+    
+    textures_["strumPress"] = sharedStrumPressTexture_;
+    ownedTextures_[sharedStrumPressTexture_] = false;
+}
 
-    if (!strumPressedTexture_) {
-        GAME_LOG_ERROR("Failed to load strum pressed texture from " + pressedFilePath);
+void Strum::destroyTextures() {
+    if (sharedStrumTexture_ != nullptr) {
+        SDL_DestroyTexture(sharedStrumTexture_);
+        sharedStrumTexture_ = nullptr;
+    }
+
+    if (sharedStrumPressTexture_ != nullptr) {
+        SDL_DestroyTexture(sharedStrumPressTexture_);
+        sharedStrumPressTexture_ = nullptr;
     }
 }
 
@@ -73,7 +80,8 @@ void Strum::setPadding(float top, float bottom, float left, float right) {
 void Strum::update(float deltaTime) {}
 
 void Strum::render(SDL_Renderer* renderer) {
-    SDL_Texture* textureToRender = isPressed_ && strumPressedTexture_ ? strumPressedTexture_ : strumTexture_;
+    std::string textureKey = isPressed_ ? "strumPress" : "strum";
+    SDL_Texture* textureToRender = textures_.count(textureKey) ? textures_[textureKey] : nullptr;
 
     SDL_FRect strumRect = {
         x_ + padding_left_,

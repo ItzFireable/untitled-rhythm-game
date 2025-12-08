@@ -14,7 +14,6 @@
 #include <utils/SettingsManager.h>
 #include <rhythm/JudgementSystem.h>
 #include <utils/rhythm/ChartUtils.h>
-#include <objects/debug/ConductorInfo.h>
 
 class PlayState : public BaseState
 {
@@ -36,7 +35,7 @@ private:
     PlayStateData* currentStateData_ = nullptr;
     SongSelectData* previousStateData_ = nullptr;
 
-    std::unique_ptr<Conductor> conductor_;
+    Conductor* conductor_;
     std::unique_ptr<SkinUtils> skinUtils_;
 
     ChartData chartData_;
@@ -45,7 +44,6 @@ private:
     std::unique_ptr<JudgementSystem> judgementSystem_;
     
     SDL_Texture* backgroundTexture_;
-    ConductorInfo* conductorInfo_ = nullptr;
     GameplayHud* gameplayHud_ = nullptr;
 
     float baseSize = 200.0f;

@@ -164,22 +164,7 @@ void SongSelectState::init(AppContext* appContext, void* payload)
 
     this->listCenterX_ = screenWidth_ / 2.0f;
     this->listCenterY_ = screenHeight_ / 2.0f;
-    this->conductor_ = std::make_unique<Conductor>();
-    
-    conductorInfo_ = new ConductorInfo(renderer, MAIN_FONT_PATH, 16, 7.0f);
-    conductorInfo_->setConductor(conductor_.get());
-
-    DebugInfo* debugInfo = appContext->debugInfo;
-    FPSCounter* fpsCounter = appContext->fpsCounter;
-
-    if (debugInfo)
-    {
-        conductorInfo_->setYPosition(debugInfo->getYPosition() + debugInfo->getHeight() + 8.0f);
-    }
-    else if (fpsCounter)
-    {
-        conductorInfo_->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
-    }
+    this->conductor_ = appContext->conductor;
 
     std::vector<std::string> topLevelFolders = Utils::getChartList();
     SongPack miscellaneousPack;
@@ -726,26 +711,6 @@ void SongSelectState::update(float deltaTime)
             this->chartTitles_[i]->setColor({255, 255, 255, 255});
         }
     }
-
-    if (conductor_) {
-        conductor_->update(deltaTime);
-
-        if (conductorInfo_)
-        {
-            DebugInfo* debugInfo = appContext->debugInfo;
-            FPSCounter* fpsCounter = appContext->fpsCounter;
-
-            if (debugInfo)
-            {
-                conductorInfo_->setYPosition(debugInfo->getYPosition() + debugInfo->getHeight() + 8.0f);
-            }
-            else if (fpsCounter)
-            {
-                conductorInfo_->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
-            }
-            conductorInfo_->update();
-        }
-    }
 }
 
 void SongSelectState::render()
@@ -793,21 +758,12 @@ void SongSelectState::render()
     {
         //this->diffTextObject_->render();
     }
-
-    if (conductorInfo_) { conductorInfo_->render(renderer);}
 }
 
 void SongSelectState::destroy()
 {
-    if (conductorInfo_)
-    {
-        delete conductorInfo_;
-        conductorInfo_ = nullptr;
-    }
-
     if (conductor_) {
         conductor_->stop();
-        conductor_.reset();
     }
 
     if (this->currentBackgroundTexture_) {

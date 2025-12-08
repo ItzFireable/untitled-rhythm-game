@@ -15,6 +15,8 @@
 #include <rhythm/GameplayHud.h>
 #include <vector>
 #include <map>
+#include <random>
+#include <chrono>
 
 class Playfield {
 public:
@@ -145,6 +147,10 @@ private:
 
     float judgementTexW_ = 0.0f;
     float judgementTexH_ = 0.0f;
+
+    std::mt19937 randomGenerator_;
+    std::uniform_real_distribution<float> offsetDistribution_;
+    std::unordered_map<int, float> autoplayReleaseTimes_;
 };
 
 #endif

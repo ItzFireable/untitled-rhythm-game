@@ -23,8 +23,8 @@ public:
     virtual void update(float deltaTime);
     virtual void render(SDL_Renderer* renderer);
 
-    void loadTexture(SDL_Renderer* renderer);
-    void setRenderTexture(SDL_Texture* texture, bool ownedByStrum);
+    virtual void loadTextures(SDL_Renderer* renderer, Playfield* playfield);
+    virtual void destroyTextures();
 
     bool isPressed() const {
         return isPressed_;
@@ -60,6 +60,11 @@ public:
     void setPlayfield(Playfield* playfield) {
         playfield_ = playfield;
     }
+
+protected:
+    std::map<std::string, SDL_Texture*> textures_;
+    std::map<SDL_Texture*, bool> ownedTextures_;
+
 private:
     int column_ = 0;
     bool isPressed_ = false;
@@ -73,12 +78,11 @@ private:
     float padding_bottom_ = 4.0f;
     float padding_left_ = 4.0f;
     float padding_right_ = 4.0f;
-
-    SDL_Texture *strumTexture_ = nullptr;
-    SDL_Texture *strumPressedTexture_ = nullptr;
-
-    std::map<SDL_Texture*, bool> ownedTextures_;
+    
     Playfield* playfield_ = nullptr;
+    
+    static SDL_Texture* sharedStrumTexture_;
+    static SDL_Texture* sharedStrumPressTexture_;
 };
 
 #endif

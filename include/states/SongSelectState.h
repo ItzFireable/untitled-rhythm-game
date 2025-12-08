@@ -5,7 +5,6 @@
 #include <utils/rhythm/ChartUtils.h>
 #include <rhythm/Conductor.h>
 #include <rhythm/DifficultyCalculator.h>
-#include <objects/debug/ConductorInfo.h>
 #include <objects/TextObject.h>
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
@@ -47,8 +46,7 @@ public:
         return "SongSelectState";
     }
 private:
-    std::unique_ptr<Conductor> conductor_;
-    ConductorInfo* conductorInfo_ = nullptr;
+    Conductor* conductor_;
 
     std::vector<SongPack> songPacks_;
     std::vector<FlatSongEntry> flatSongList_;

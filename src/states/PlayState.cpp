@@ -32,7 +32,11 @@ void PlayState::init(AppContext *appContext, void *payload)
     isReady_ = false;
 
     loadChart(chartData_);
-    conductor_ = std::make_unique<Conductor>();
+    conductor_ = appContext->conductor;
+
+    conductor_->setLooping(false);
+    conductor_->setLoopRegion(-1.0f, -1.0f);
+
     judgementSystem_ = std::make_unique<JudgementSystem>();
     judgementSystem_->reset();
 
@@ -59,32 +63,17 @@ void PlayState::init(AppContext *appContext, void *payload)
         }
     }
 
-    DebugInfo* debugInfo = appContext->debugInfo;
-    FPSCounter* fpsCounter = appContext->fpsCounter;
-
-    conductorInfo_ = new ConductorInfo(renderer, MAIN_FONT_PATH, 16, 7.0f);
-    conductorInfo_->setConductor(conductor_.get());
-
-    if (debugInfo)
-    {
-        conductorInfo_->setYPosition(debugInfo->getYPosition() + debugInfo->getHeight() + 8.0f);
-    }
-    else if (fpsCounter)
-    {
-        conductorInfo_->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
-    }
-
     skinUtils_ = std::make_unique<SkinUtils>();
     skinUtils_->loadSkin(appContext->settingsManager->getSetting<std::string>("GAMEPLAY.selectedSkin", "default"));
 
     gameplayHud_ = new GameplayHud(appContext, skinUtils_.get(), judgementSystem_.get());
-    gameplayHud_->setConductor(conductor_.get());
+    gameplayHud_->setConductor(conductor_);
     gameplayHud_->setJudgementSystem(judgementSystem_.get());
 
     playfield_ = new Playfield();
     playfield_->init(appContext, chartData_.keyCount, screenHeight_, skinUtils_.get());
     playfield_->setPosition(screenWidth_ / 2.0f, screenHeight_ / 2.0f);
-    playfield_->setConductor(conductor_.get());
+    playfield_->setConductor(conductor_);
     playfield_->setGameplayHud(gameplayHud_);
 
     playfield_->setJudgementSystem(judgementSystem_.get());
@@ -204,27 +193,9 @@ void PlayState::update(float deltaTime)
             isReady_ = true;
         }
     }
-    
-    conductor_->update(deltaTime);
 
     if (playfield_) { playfield_->update(deltaTime);}
     if (gameplayHud_) { gameplayHud_->update(deltaTime);}
-
-    if (conductorInfo_)
-    {
-        DebugInfo* debugInfo = appContext->debugInfo;
-        FPSCounter* fpsCounter = appContext->fpsCounter;
-
-        if (debugInfo)
-        {
-            conductorInfo_->setYPosition(debugInfo->getYPosition() + debugInfo->getHeight() + 8.0f);
-        }
-        else if (fpsCounter)
-        {
-            conductorInfo_->setYPosition(fpsCounter->getYPosition() + fpsCounter->getHeight() + 4.0f);
-        }
-        conductorInfo_->update();
-    }
 }
 
 void PlayState::render()
@@ -234,8 +205,6 @@ void PlayState::render()
         SDL_RenderTexture(renderer, backgroundTexture_, nullptr, nullptr);
     }
     if (playfield_) { playfield_->render(renderer);}
-    if (conductorInfo_) { conductorInfo_->render(renderer);}
-
     if (gameplayHud_) { gameplayHud_->render();}
 }
 
@@ -251,7 +220,6 @@ void PlayState::destroy()
     if (conductor_)
     {
         conductor_->stop();
-        conductor_.reset();
     }
 
     if (playfield_)
@@ -264,12 +232,6 @@ void PlayState::destroy()
     if (judgementSystem_)
     {
         judgementSystem_.reset();
-    }
-
-    if (conductorInfo_)
-    {
-        delete conductorInfo_;
-        conductorInfo_ = nullptr;
     }
 
     if (gameplayHud_)

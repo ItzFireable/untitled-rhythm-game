@@ -25,13 +25,9 @@ void ConductorInfo::update()
     if (!textObject_)
         return;
 
-    Conductor* conductor = this->conductor_;
-    if (!conductor)
-        return;
-
-    bool isInitialized = conductor_->isInitialized();
-    bool isAudioLoading = conductor_->isLoadingAudio();
-    bool isPlaying = conductor_->isPlaying();
+    bool isInitialized = false;
+    bool isAudioLoading = false;
+    bool isPlaying = false;
 
     float songPosition = 0.0f;
     float endTime = 0.0f;
@@ -40,7 +36,13 @@ void ConductorInfo::update()
     float songStep = 0.0f;
     float songBPM = 0.0f;
 
-    if (isInitialized && !isAudioLoading) { 
+    if (conductor_) {
+        isInitialized = conductor_->isInitialized();
+        isAudioLoading = conductor_->isLoadingAudio();
+        isPlaying = conductor_->isPlaying();
+    }
+
+    if (conductor_ && isInitialized && !isAudioLoading) { 
         songPosition = conductor_->getSongPosition() / conductor_->getPlaybackRate();
         endTime = conductor_->getSongDuration() / conductor_->getPlaybackRate();
 
@@ -57,8 +59,8 @@ void ConductorInfo::update()
        << "BEAT: " << songBeats << "\n"
        << "STEP: " << songStep << "\n"
        << "BPM: " << songBPM;
-    ss << "\nSTATUS: " << (isPlaying ? "Playing" : "Paused");
-    ss << "\nAUDIO LOAD: " << (isInitialized ? (isAudioLoading ? "Loading..." : "Loaded") : "Not Initialized");
+    ss << "\nSTATUS: " << (isInitialized ? (isPlaying ? "Playing" : "Paused") : "N/A");
+    ss << "\nAUDIO LOAD: " << (isInitialized ? (isAudioLoading ? "Loading" : "Loaded") : "N/A");
 
     textObject_->setText(ss.str());
 }

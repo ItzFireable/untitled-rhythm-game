@@ -1,73 +1,86 @@
 #include <objects/rhythm/HoldNote.h>
 #include <rhythm/Playfield.h>
 
-SDL_Texture *HoldNote::sharedTexture_ = nullptr;
-SDL_Texture *HoldNote::sharedBodyTexture_ = nullptr;
-SDL_Texture *HoldNote::sharedEndTexture_ = nullptr;
+SDL_Texture* HoldNote::sharedHoldStartTexture_ = nullptr;
+SDL_Texture* HoldNote::sharedHoldBodyTexture_ = nullptr;
+SDL_Texture* HoldNote::sharedHoldEndTexture_ = nullptr;
 
-void HoldNote::LoadSharedTextures(SDL_Renderer *renderer, Playfield *pf)
+void HoldNote::loadTextures(SDL_Renderer *renderer, Playfield *pf)
 {
     SkinUtils *skinUtils = pf->getSkinUtils();
 
-    if (sharedTexture_ == nullptr)
+    if (sharedHoldStartTexture_ == nullptr)
     {
         std::string filePath = skinUtils->getFilePathForSkinElement("notes/holdStart");
-
-        sharedTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
-        if (!sharedTexture_)
+        sharedHoldStartTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
+        if (!sharedHoldStartTexture_)
         {
             GAME_LOG_ERROR("Failed to load shared hold texture from " + filePath);
         }
     }
 
-    if (sharedBodyTexture_ == nullptr)
+    if (sharedHoldBodyTexture_ == nullptr)
     {
         std::string filePath = skinUtils->getFilePathForSkinElement("notes/holdBody");
-
-        sharedBodyTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
-        if (!sharedBodyTexture_)
+        sharedHoldBodyTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
+        if (!sharedHoldBodyTexture_)
         {
             GAME_LOG_ERROR("Failed to load shared hold body texture from " + filePath);
         }
     }
 
-    if (sharedEndTexture_ == nullptr)
+    if (sharedHoldEndTexture_ == nullptr)
     {
         std::string filePath = skinUtils->getFilePathForSkinElement("notes/holdEnd");
-
-        sharedEndTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
-        if (!sharedEndTexture_)
+        sharedHoldEndTexture_ = IMG_LoadTexture(renderer, filePath.c_str());
+        if (!sharedHoldEndTexture_)
         {
             GAME_LOG_ERROR("Failed to load shared hold end texture from " + filePath);
         }
     }
+    
+    textures_["note"] = sharedHoldStartTexture_;
+    ownedTextures_[sharedHoldStartTexture_] = false;
+    
+    textures_["holdBody"] = sharedHoldBodyTexture_;
+    ownedTextures_[sharedHoldBodyTexture_] = false;
+    
+    textures_["holdEnd"] = sharedHoldEndTexture_;
+    ownedTextures_[sharedHoldEndTexture_] = false;
 }
 
-void HoldNote::DestroySharedTexture()
+void HoldNote::destroyTextures()
 {
-    if (sharedTexture_ != nullptr)
+    if (sharedHoldStartTexture_ != nullptr)
     {
-        SDL_DestroyTexture(sharedTexture_);
-        sharedTexture_ = nullptr;
+        SDL_DestroyTexture(sharedHoldStartTexture_);
+        sharedHoldStartTexture_ = nullptr;
     }
 
-    if (sharedBodyTexture_ != nullptr)
+    if (sharedHoldBodyTexture_ != nullptr)
     {
-        SDL_DestroyTexture(sharedBodyTexture_);
-        sharedBodyTexture_ = nullptr;
+        SDL_DestroyTexture(sharedHoldBodyTexture_);
+        sharedHoldBodyTexture_ = nullptr;
     }
 
-    if (sharedEndTexture_ != nullptr)
+    if (sharedHoldEndTexture_ != nullptr)
     {
-        SDL_DestroyTexture(sharedEndTexture_);
-        sharedEndTexture_ = nullptr;
+        SDL_DestroyTexture(sharedHoldEndTexture_);
+        sharedHoldEndTexture_ = nullptr;
     }
 }
 
 HoldNote::HoldNote(float x, float y, float width, float height, int column)
     : Note(x, y, width, height), column_(column)
 {
-    setRenderTexture(sharedTexture_, false);
+    textures_["note"] = sharedHoldStartTexture_;
+    ownedTextures_[sharedHoldStartTexture_] = false;
+    
+    textures_["holdBody"] = sharedHoldBodyTexture_;
+    ownedTextures_[sharedHoldBodyTexture_] = false;
+    
+    textures_["holdEnd"] = sharedHoldEndTexture_;
+    ownedTextures_[sharedHoldEndTexture_] = false;
 }
 
 HoldNote::~HoldNote() {}
@@ -104,10 +117,10 @@ void HoldNote::update(float deltaTime)
     if (!hasEndTime())
         return;
 
-    if (holdEndHeight_ < 0.0f && sharedEndTexture_ != nullptr)
+    if (holdEndHeight_ < 0.0f && textures_["holdEnd"] != nullptr)
     {
         float w, h;
-        SDL_GetTextureSize(sharedEndTexture_, &w, &h);
+        SDL_GetTextureSize(textures_["holdEnd"], &w, &h);
         setHoldEndHeight(h);
     }
 
@@ -169,8 +182,10 @@ void HoldNote::render(SDL_Renderer *renderer)
     {
         alphaMod = 128;
 
-        SDL_SetTextureAlphaMod(sharedEndTexture_, alphaMod);
-        SDL_SetTextureAlphaMod(sharedBodyTexture_, alphaMod);
+        if (textures_.count("holdEnd") && textures_["holdEnd"])
+            SDL_SetTextureAlphaMod(textures_["holdEnd"], alphaMod);
+        if (textures_.count("holdBody") && textures_["holdBody"])
+            SDL_SetTextureAlphaMod(textures_["holdBody"], alphaMod);
     }
 
     float finalEndY = getEndY();
@@ -204,7 +219,7 @@ void HoldNote::render(SDL_Renderer *renderer)
 
     float bodyHeightMinusEnd = bodyHeight - endHeight;
 
-    if (fullHeight > 1.0f)
+    if (fullHeight > 1.0f && endTime_ != -1.0f)
     {
         float actualEndHeight = std::min(endHeight, bodyHeight);
         float bodyTextureHeight = bodyHeight - actualEndHeight;
@@ -221,13 +236,16 @@ void HoldNote::render(SDL_Renderer *renderer)
             noteWidth_,
             bodyTextureHeight};
 
-        if (sharedBodyTexture_ && sharedEndTexture_)
+        SDL_Texture* bodyTex = textures_.count("holdBody") ? textures_["holdBody"] : nullptr;
+        SDL_Texture* endTex = textures_.count("holdEnd") ? textures_["holdEnd"] : nullptr;
+
+        if (bodyTex && endTex)
         {
             if (bodyTextureHeight > 0.0f)
             {
-                SDL_RenderTexture(renderer, sharedBodyTexture_, nullptr, &holdRect);
+                SDL_RenderTexture(renderer, bodyTex, nullptr, &holdRect);
             }
-            SDL_RenderTexture(renderer, sharedEndTexture_, nullptr, &endRect);
+            SDL_RenderTexture(renderer, endTex, nullptr, &endRect);
         }
         else
         {
@@ -240,8 +258,10 @@ void HoldNote::render(SDL_Renderer *renderer)
         }
     }
 
-    SDL_SetTextureAlphaMod(sharedEndTexture_, 255);
-    SDL_SetTextureAlphaMod(sharedBodyTexture_, 255);
+    if (textures_.count("holdEnd") && textures_["holdEnd"])
+        SDL_SetTextureAlphaMod(textures_["holdEnd"], 255);
+    if (textures_.count("holdBody") && textures_["holdBody"])
+        SDL_SetTextureAlphaMod(textures_["holdBody"], 255);
 
     if (isFadingOut())
     {
