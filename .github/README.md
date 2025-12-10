@@ -4,7 +4,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/ItzFireable/untitled-rhythm-game.svg?style=social&label=Star)](https://github.com/ItzFireable/untitled-rhythm-game)
 
 > [!NOTE]
-> Want to help? Have a question? Feel free then to join our [Discord server](https://discord.gg/XMrbDvZYSm)! 
+> Want to help? Have a question? Feel free then to join our [Discord server](https://discord.gg/XMrbDvZYSm) for any discussion.
 
 ## Information
 
